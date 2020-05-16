@@ -3466,7 +3466,7 @@ class Client(BaseClient):
     def futures_order_book(self, **params):
         """Get the Order Book for the market
 
-        https://binance-docs.github.io/apidocs/futures/en/#order-book-market_data
+        https://binance-docs.github.io/apidocs/futures/en/#order-book
 
         """
         return self._request_futures_api('get', 'depth', data=params)
@@ -3474,7 +3474,7 @@ class Client(BaseClient):
     def futures_recent_trades(self, **params):
         """Get recent trades (up to last 500).
 
-        https://binance-docs.github.io/apidocs/futures/en/#recent-trades-list-market_data
+        https://binance-docs.github.io/apidocs/futures/en/#recent-trades-list
 
         """
         return self._request_futures_api('get', 'trades', data=params)
@@ -3491,7 +3491,7 @@ class Client(BaseClient):
         """Get compressed, aggregate trades. Trades that fill at the time, from the same order, with the same
         price will have the quantity aggregated.
 
-        https://binance-docs.github.io/apidocs/futures/en/#compressed-aggregate-trades-list-market_data
+        https://binance-docs.github.io/apidocs/futures/en/#compressed-aggregate-trades-list
 
         """
         return self._request_futures_api('get', 'aggTrades', data=params)
@@ -3499,7 +3499,7 @@ class Client(BaseClient):
     def futures_klines(self, **params):
         """Kline/candlestick bars for a symbol. Klines are uniquely identified by their open time.
 
-        https://binance-docs.github.io/apidocs/futures/en/#kline-candlestick-data-market_data
+        https://binance-docs.github.io/apidocs/futures/en/#kline-candlestick-data
 
         """
         return self._request_futures_api('get', 'klines', data=params)
@@ -3507,7 +3507,7 @@ class Client(BaseClient):
     def futures_mark_price(self, **params):
         """Get Mark Price and Funding Rate
 
-        https://binance-docs.github.io/apidocs/futures/en/#mark-price-market_data
+        https://binance-docs.github.io/apidocs/futures/en/#mark-price
 
         """
         return self._request_futures_api('get', 'premiumIndex', data=params)
@@ -3523,7 +3523,7 @@ class Client(BaseClient):
     def futures_ticker(self, **params):
         """24 hour rolling window price change statistics.
 
-        https://binance-docs.github.io/apidocs/futures/en/#24hr-ticker-price-change-statistics-market_data
+        https://binance-docs.github.io/apidocs/futures/en/#24hr-ticker-price-change-statistics
 
         """
         return self._request_futures_api('get', 'ticker/24hr', data=params)
@@ -3531,7 +3531,7 @@ class Client(BaseClient):
     def futures_symbol_ticker(self, **params):
         """Latest price for a symbol or symbols.
 
-        https://binance-docs.github.io/apidocs/futures/en/#symbol-price-ticker-market_data
+        https://binance-docs.github.io/apidocs/futures/en/#symbol-price-ticker
 
         """
         return self._request_futures_api('get', 'ticker/price', data=params)
@@ -3539,7 +3539,7 @@ class Client(BaseClient):
     def futures_orderbook_ticker(self, **params):
         """Best price/qty on the order book for a symbol or symbols.
 
-        https://binance-docs.github.io/apidocs/futures/en/#symbol-order-book-ticker-market_data
+        https://binance-docs.github.io/apidocs/futures/en/#symbol-order-book-ticker
 
         """
         return self._request_futures_api('get', 'ticker/bookTicker', data=params)
@@ -3547,7 +3547,7 @@ class Client(BaseClient):
     def futures_liquidation_orders(self, **params):
         """Get all liquidation orders
 
-        https://binance-docs.github.io/apidocs/futures/en/#get-all-liquidation-orders-market_data
+        https://binance-docs.github.io/apidocs/futures/en/#get-all-liquidation-orders
 
         """
         return self._request_futures_api('get', 'ticker/allForceOrders', data=params)
@@ -3555,7 +3555,7 @@ class Client(BaseClient):
     def futures_open_interest(self, **params):
         """Get present open interest of a specific symbol.
 
-        https://binance-docs.github.io/apidocs/futures/en/#open-interest-market_data
+        https://binance-docs.github.io/apidocs/futures/en/#open-interest-statistics-market_data
 
         """
         return self._request_futures_api('get', 'ticker/openInterest', data=params)
@@ -3563,7 +3563,7 @@ class Client(BaseClient):
     def futures_leverage_bracket(self, **params):
         """Notional and Leverage Brackets
 
-        https://binance-docs.github.io/apidocs/futures/en/#notional-and-leverage-brackets-market_data
+        https://binance-docs.github.io/apidocs/futures/en/#notional-and-leverage-brackets-user_data
 
         """
         return self._request_futures_api('get', 'ticker/leverageBracket', data=params)
@@ -3595,7 +3595,7 @@ class Client(BaseClient):
     def futures_get_open_orders(self, **params):
         """Get all open orders on a symbol.
 
-        https://binance-docs.github.io/apidocs/futures/en/#current-open-orders-user_data
+        https://binance-docs.github.io/apidocs/futures/en/#current-all-open-orders-user_data
 
         """
         return self._request_futures_api('get', 'openOrders', True, data=params)
@@ -3675,7 +3675,7 @@ class Client(BaseClient):
     def futures_position_margin_history(self, **params):
         """Get position margin change history
 
-        https://binance-docs.github.io/apidocs/futures/en/#get-postion-margin-change-history-trade
+        https://binance-docs.github.io/apidocs/futures/en/#get-position-margin-change-history-trade
 
         """
         return self._request_futures_api('get', 'positionMargin/history', True, data=params)
