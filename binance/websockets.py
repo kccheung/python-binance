@@ -55,7 +55,7 @@ class ReconnectingWebsocket:
                         except ValueError:
                             self._log.debug('error parsing evt json:{}'.format(evt))
                         else:
-                            await self._coro(evt_obj)
+                            asyncio.run_coroutine_threadsafe(self._coro(evt_obj), self._loop)
             except ws.ConnectionClosed as e:
                 self._log.debug('ws connection closed:{}'.format(e))
                 await self._reconnect()
