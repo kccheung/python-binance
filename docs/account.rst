@@ -78,6 +78,22 @@ Use the helper functions to easily place a market buy or sell order
         symbol='BNBBTC',
         quantity=100)
 
+**Place an OCO order**
+
+Use the `create_oco_order` function to have full control over creating an OCO order
+
+.. code:: python
+
+    from binance.enums import *
+    order = client.create_oco_order(
+        symbol='BNBBTC',
+        side=SIDE_SELL,
+        stopLimitTimeInForce=TIME_IN_FORCE_GTC,
+        quantity=100,
+        stopPrice='0.00001'
+        price='0.00002')
+
+
 `Place a test order <binance.html#binance.client.Client.create_test_order>`_
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -184,3 +200,18 @@ Account
 .. code:: python
 
     log = client.get_dust_log()
+
+`Transfer dust <binance.html#binance.client.Client.transfer_dust>`_
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: python
+
+    transfer = client.transfer_dust(asset='BNZ')
+
+
+`Get Asset Dividend History <binance.html#binance.client.Client.get_asset_dividend_history>`_
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code:: python
+
+    history = client.get_asset_dividend_history()

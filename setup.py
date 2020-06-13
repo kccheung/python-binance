@@ -18,7 +18,7 @@ with codecs.open(
 
 setup(
     name='python-binance',
-    version=version,
+    version='0.7.5-async',
     packages=['binance'],
     description='Binance REST API python implementation',
     url='https://github.com/sammchardy/python-binance',
@@ -26,7 +26,7 @@ setup(
     license='MIT',
     author_email='',
     install_requires=[
-        'requests', 'six', 'pyOpenSSL', 'service-identity', 'dateparser', 'urllib3', 'chardet', 'certifi',
+        'requests', 'six', 'Twisted', 'pyOpenSSL', 'autobahn', 'service-identity', 'dateparser', 'urllib3', 'chardet', 'certifi',
         'cryptography', 'aiohttp'
     ],
     keywords='binance exchange rest api bitcoin ethereum btc eth neo',

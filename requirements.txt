@@ -7,3 +7,5 @@ pyOpenSSL
 requests
 service-identity
 websockets
+autobahn==18.7.1
+Twisted==19.7.0

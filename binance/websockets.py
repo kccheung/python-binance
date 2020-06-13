@@ -8,14 +8,12 @@ from .client import Client
 
 
 class ReconnectingWebsocket:
-
-    STREAM_URL = 'wss://stream.binance.com:9443/'
     MAX_RECONNECTS = 5
     MAX_RECONNECT_SECONDS = 60
     MIN_RECONNECT_WAIT = 0.1
     TIMEOUT = 10
 
-    def __init__(self, loop, path, coro, prefix='ws/'):
+    def __init__(self, loop, ws_domain, path, coro, prefix='ws/'):
         self._loop = loop
         self._log = logging.getLogger(__name__)
         self._path = path
@@ -24,6 +22,7 @@ class ReconnectingWebsocket:
         self._reconnects = 0
         self._conn = None
         self._socket = None
+        self.ws_domain = ws_domain
 
         self._connect()
 
@@ -34,7 +33,7 @@ class ReconnectingWebsocket:
 
         keep_waiting = True
 
-        ws_url = self.STREAM_URL + self._prefix + self._path
+        ws_url = self.ws_domain + self._prefix + self._path
         async with ws.connect(ws_url) as socket:
             self._socket = socket
             self._reconnects = 0
@@ -91,14 +90,17 @@ class ReconnectingWebsocket:
 
 
 class BinanceSocketManager:
+    STREAM_URL = 'wss://stream.binance.com:9443/'
+    FSTREAM_URL = 'wss://fstream.binance.com/'
+    DSTREAM_URL = 'wss://dstream.binance.com/'
 
     WEBSOCKET_DEPTH_5 = '5'
     WEBSOCKET_DEPTH_10 = '10'
     WEBSOCKET_DEPTH_20 = '20'
 
-    _user_timeout = 30 * 60  # 30 minutes
+    DEFAULT_USER_TIMEOUT = 30 * 60  # 30 minutes
 
-    def __init__(self, client, loop):
+    def __init__(self, client, loop, user_timeout=DEFAULT_USER_TIMEOUT):
         """Initialise the BinanceSocketManager
 
         :param client: Binance API client
@@ -106,19 +108,35 @@ class BinanceSocketManager:
 
         """
         self._conns = {}
-        self._user_timer = None
-        self._user_listen_key = None
-        self._user_callback = None
         self._client = client
         self._loop = loop
         self._log = logging.getLogger(__name__)
+        self._user_timeout = user_timeout
+        self._timers = {'user': None, 'margin': None}
+        self._listen_keys = {'user': None, 'margin': None}
+        self._account_callbacks = {'user': None, 'margin': None}
 
     async def _start_socket(self, path, coro, prefix='ws/'):
         if path in self._conns:
             return False
 
-        self._conns[path] = ReconnectingWebsocket(self._loop, path, coro, prefix)
+        self._conns[path] = ReconnectingWebsocket(self._loop, self.STREAM_URL, path, coro, prefix)
 
+        return path
+
+    async def _start_futures_socket(self, path, coro, prefix='stream?streams='):
+        if path in self._conns:
+            return False
+
+        # factory_url = self.FSTREAM_URL + prefix + path
+        # factory = BinanceClientFactory(factory_url)
+        # factory.protocol = BinanceClientProtocol
+        # factory.callback = callback
+        # factory.reconnect = True
+        # context_factory = ssl.ClientContextFactory()
+
+        # self._conns[path] = connectWS(factory, context_factory)
+        self._conns[path] = ReconnectingWebsocket(self._loop, self.FSTREAM_URL, path, coro, prefix)
         return path
 
     async def start_depth_socket(self, symbol, coro, depth=None):
@@ -268,9 +286,8 @@ class BinanceSocketManager:
                 }
             ]
         """
-
         path = '!miniTicker@arr@{}ms'.format(update_time)
-        await self._start_socket('!miniTicker@arr@{}ms'.format(update_time), coro)
+        await self._start_socket(path, coro)
         return path
 
     async def start_trade_socket(self, symbol, coro):
@@ -342,7 +359,7 @@ class BinanceSocketManager:
 
         """
         path = symbol.lower() + '@aggTrade'
-        await self._start_socket(symbol.lower() + '@aggTrade', coro)
+        await self._start_socket(path, coro)
         return path
 
     async def start_symbol_ticker_socket(self, symbol, coro):
@@ -389,7 +406,7 @@ class BinanceSocketManager:
 
         """
         path = symbol.lower() + '@ticker'
-        await self._start_socket(symbol.lower() + '@ticker', coro)
+        await self._start_socket(path, coro)
         return path
 
     async def start_ticker_socket(self, coro):
@@ -435,6 +452,121 @@ class BinanceSocketManager:
             ]
         """
         path = '!ticker@arr'
+        await self._start_socket(path, coro)
+        return path
+
+    async def start_allticker_futures_socket(self, coro):
+        """Start a websocket for all ticker data
+
+        By default all markets are included in an array.
+
+        https://binanceapitest.github.io/Binance-Futures-API-doc/wss/#all-book-tickers-stream
+
+        :param coro: callback function to handle messages
+        :type coro: function
+
+        :returns: connection key string if successful, False otherwise
+
+        Message Format
+
+        .. code-block:: python
+
+            [
+                {
+                  "u":400900217,     // order book updateId
+                  "s":"BNBUSDT",     // symbol
+                  "b":"25.35190000", // best bid price
+                  "B":"31.21000000", // best bid qty
+                  "a":"25.36520000", // best ask price
+                  "A":"40.66000000"  // best ask qty
+                }
+            ]
+        """
+        path = '!bookTicker'
+        await self._start_futures_socket(path, coro)
+        return path
+
+    async def start_symbol_ticker_futures_socket(self, symbol, coro):
+        """Start a websocket for all ticker data
+
+        By default all markets are included in an array.
+
+        https://binanceapitest.github.io/Binance-Futures-API-doc/wss/#individual-symbol-mini-ticker-stream
+
+        :param symbol: required
+        :type symbol: str
+        :param coro: callback function to handle messages
+        :type coro: function
+
+        :returns: connection key string if successful, False otherwise
+
+        .. code-block:: python
+
+            [
+                {
+                  "u":400900217,     // order book updateId
+                  "s":"BNBUSDT",     // symbol
+                  "b":"25.35190000", // best bid price
+                  "B":"31.21000000", // best bid qty
+                  "a":"25.36520000", // best ask price
+                  "A":"40.66000000"  // best ask qty
+                }
+            ]
+        """
+        path = symbol.lower() + '@bookTicker'
+        await self._start_futures_socket(path, coro)
+        return path
+
+    async def start_symbol_book_ticker_socket(self, symbol, coro):
+        """Start a websocket for the best bid or ask's price or quantity for a specified symbol.
+
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/web-socket-streams.md#individual-symbol-book-ticker-streams
+
+        :param symbol: required
+        :type symbol: str
+        :param coro: callback function to handle messages
+        :type coro: function
+
+        :returns: connection key string if successful, False otherwise
+
+        Message Format
+
+        .. code-block:: python
+
+            {
+                "u":400900217,     // order book updateId
+                "s":"BNBUSDT",     // symbol
+                "b":"25.35190000", // best bid price
+                "B":"31.21000000", // best bid qty
+                "a":"25.36520000", // best ask price
+                "A":"40.66000000"  // best ask qty
+            }
+
+        """
+        path = symbol.lower() + '@bookTicker'
+        await self._start_socket(path, coro)
+        return path
+
+    async def start_book_ticker_socket(self, coro):
+        """Start a websocket for the best bid or ask's price or quantity for all symbols.
+
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/web-socket-streams.md#all-book-tickers-stream
+
+        :param coro: callback function to handle messages
+        :type coro: function
+
+        :returns: connection key string if successful, False otherwise
+
+        Message Format
+
+        .. code-block:: python
+
+            {
+                // Same as <symbol>@bookTicker payload
+            }
+
+        """
+        path = '!bookTicker'
         await self._start_socket(path, coro)
         return path
 

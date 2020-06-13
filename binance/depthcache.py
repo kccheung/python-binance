@@ -187,7 +187,7 @@ class DepthCacheManager(object):
             await self._process_depth_message(msg, buffer=True)
 
         # clear the depth buffer
-        del self._depth_message_buffer
+        self._depth_message_buffer = []
 
     async def _start_socket(self):
         """Start the depth cache socket
