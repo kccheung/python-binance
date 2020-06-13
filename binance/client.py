@@ -5161,11 +5161,6 @@ class AsyncClient(BaseClient):
 
     get_deposit_address.__doc__ = Client.get_deposit_address.__doc__
 
-    async def get_withdraw_fee(self, **params):
-        return await self._request_withdraw_api('get', 'withdrawFee.html', True, data=params)
-
-    get_withdraw_fee.__doc__ = Client.get_withdraw_fee.__doc__
-
     # User Stream Endpoints
 
     async def stream_get_listen_key(self):
