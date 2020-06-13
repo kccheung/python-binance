@@ -19,11 +19,13 @@ class BaseClient(ABC):
     MARGIN_API_URL = 'https://api.binance.{}/sapi'
     WEBSITE_URL = 'https://www.binance.{}'
     FUTURES_URL = 'https://fapi.binance.{}/fapi'
-    PUBLIC_API_VERSION = 'v1'
+    TRADITIONAL_FUTURES_URL = 'https://dapi.binance.{}/dapi'
+    PUBLIC_API_VERSION = 'v3'
     PRIVATE_API_VERSION = 'v3'
     WITHDRAW_API_VERSION = 'v3'
     MARGIN_API_VERSION = 'v1'
     FUTURES_API_VERSION = 'v1'
+    TRADITIONAL_FUTURES_API_VERSION = 'v1'
 
     SYMBOL_TYPE_SPOT = 'SPOT'
 
@@ -115,7 +117,9 @@ class BaseClient(ABC):
     def _init_session(self):
         pass
 
-    def _create_api_uri(self, path, signed=True, version=PUBLIC_API_VERSION):
+    def _create_api_uri(self, path, signed=True, version=None):
+        if version is None:
+            version = self.PUBLIC_API_VERSION
         v = self.PRIVATE_API_VERSION if signed else version
         return self.API_URL + '/' + v + '/' + path
 
@@ -246,7 +250,7 @@ class Client(BaseClient):
         except ValueError:
             raise BinanceRequestException('Invalid Response: %s' % self.response.text)
 
-    def _request_api(self, method, path, signed=False, version=BaseClient.PUBLIC_API_VERSION, **kwargs):
+    def _request_api(self, method, path, signed=False, version=None, **kwargs):
         uri = self._create_api_uri(path, signed, version)
         return self._request(method, uri, signed, **kwargs)
 
@@ -258,20 +262,19 @@ class Client(BaseClient):
         uri = self._create_website_uri(path)
         return self._request(method, uri, signed, **kwargs)
 
-    def _get(self, path, signed=False, version=BaseClient.PUBLIC_API_VERSION, **kwargs):
+    def _get(self, path, signed=False, version=None, **kwargs):
         return self._request_api('get', path, signed, version, **kwargs)
 
-    def _post(self, path, signed=False, version=BaseClient.PUBLIC_API_VERSION, **kwargs):
+    def _post(self, path, signed=False, version=None, **kwargs):
         return self._request_api('post', path, signed, version, **kwargs)
 
-    def _put(self, path, signed=False, version=BaseClient.PUBLIC_API_VERSION, **kwargs):
+    def _put(self, path, signed=False, version=None, **kwargs):
         return self._request_api('put', path, signed, version, **kwargs)
 
-    def _delete(self, path, signed=False, version=BaseClient.PUBLIC_API_VERSION, **kwargs):
+    def _delete(self, path, signed=False, version=None, **kwargs):
         return self._request_api('delete', path, signed, version, **kwargs)
 
     # Exchange Endpoints
-
     def get_products(self):
         """Return list of products currently listed on Binance
 
@@ -2125,7 +2128,6 @@ class Client(BaseClient):
         return res
 
     # Withdraw Endpoints
-
     def withdraw(self, **params):
         """Submit a withdraw request.
 
@@ -3706,7 +3708,6 @@ class Client(BaseClient):
 class AsyncClient(BaseClient):
     @classmethod
     async def create(cls, api_key='', api_secret='', requests_params=None, tld='com'):
-
         self = cls(api_key, api_secret, requests_params, tld)
 
         await self.ping()
@@ -3714,7 +3715,6 @@ class AsyncClient(BaseClient):
         return self
 
     def _init_session(self):
-
         loop = asyncio.get_event_loop()
         session = aiohttp.ClientSession(
             loop=loop,
@@ -3723,7 +3723,6 @@ class AsyncClient(BaseClient):
         return session
 
     async def _request(self, method, uri, signed, force_params=False, **kwargs):
-
         kwargs = self._get_request_kwargs(method, signed, force_params, **kwargs)
 
         async with getattr(self.session, method)(uri, **kwargs) as response:
@@ -3742,7 +3741,7 @@ class AsyncClient(BaseClient):
             txt = await response.text()
             raise BinanceRequestException('Invalid Response: {}'.format(txt))
 
-    async def _request_api(self, method, path, signed=False, version=BaseClient.PUBLIC_API_VERSION, **kwargs):
+    async def _request_api(self, method, path, signed=False, version=None, **kwargs):
         uri = self._create_api_uri(path, signed, version)
         return await self._request(method, uri, signed, **kwargs)
 
@@ -3754,16 +3753,16 @@ class AsyncClient(BaseClient):
         uri = self._create_website_uri(path)
         return await self._request(method, uri, signed, **kwargs)
 
-    async def _get(self, path, signed=False, version=BaseClient.PUBLIC_API_VERSION, **kwargs):
+    async def _get(self, path, signed=False, version=None, **kwargs):
         return await self._request_api('get', path, signed, version, **kwargs)
 
-    async def _post(self, path, signed=False, version=BaseClient.PUBLIC_API_VERSION, **kwargs):
+    async def _post(self, path, signed=False, version=None, **kwargs):
         return await self._request_api('post', path, signed, version, **kwargs)
 
-    async def _put(self, path, signed=False, version=BaseClient.PUBLIC_API_VERSION, **kwargs):
+    async def _put(self, path, signed=False, version=None, **kwargs):
         return await self._request_api('put', path, signed, version, **kwargs)
 
-    async def _delete(self, path, signed=False, version=BaseClient.PUBLIC_API_VERSION, **kwargs):
+    async def _delete(self, path, signed=False, version=None, **kwargs):
         return await self._request_api('delete', path, signed, version, **kwargs)
 
     # Exchange Endpoints
