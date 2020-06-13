@@ -135,6 +135,9 @@ class BaseClient(ABC):
     def _create_futures_api_uri(self, path):
         return self.FUTURES_URL + '/' + self.FUTURES_API_VERSION + '/' + path
 
+    def _create_tfutures_api_uri(self, path):
+        return self.TRADITIONAL_FUTURES_URL + '/' + self.TRADITIONAL_FUTURES_API_VERSION + '/' + path
+
     def _generate_signature(self, data):
 
         ordered_data = self._order_params(data)
@@ -237,6 +240,11 @@ class Client(BaseClient):
 
         return self._request(method, uri, signed, True, **kwargs)
 
+    def _request_tfutures_api(self, method, path, signed=False, **kwargs):
+        uri = self._create_tfutures_api_uri(path)
+
+        return self._request(method, uri, signed, True, **kwargs)
+
     @staticmethod
     def _handle_response(self):
         """Internal helper for handling API responses from the Binance server.
@@ -286,7 +294,7 @@ class Client(BaseClient):
 
         """
 
-        products = self._request_website('get', 'exchange/public/product')
+        products = self._request_website('get', 'exchange-api/v1/public/asset-service/product/get-products')
         return products
 
     def get_exchange_info(self):
@@ -463,7 +471,7 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
 
         """
-        return self._get('allPrices')
+        return self._get('ticker/price')
 
     def get_orderbook_tickers(self):
         """Best price/qty on the order book for all symbols.
@@ -494,7 +502,7 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
 
         """
-        return self._get('allBookTickers')
+        return self._get('ticker/bookTicker')
 
     def get_order_book(self, **params):
         """Get the Order Book for the market
@@ -937,7 +945,7 @@ class Client(BaseClient):
                 "mins": 5,
                 "price": "9.35751834"
             }
-"""
+        """
         return self._get('avgPrice', data=params, version=self.PRIVATE_API_VERSION)
 
     def get_ticker(self, **params):
@@ -1083,6 +1091,75 @@ class Client(BaseClient):
 
         """
         return self._get('bookTicker', data=params, version=self.PRIVATE_API_VERSION)
+
+    def get_api_trading_status(self, **params):
+        """Get account status detail.
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/wapi-api.md#account-api-trading-status-user_data
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            {
+                "success": true,     // Query result
+                "status": {          // API trading status detail
+                    "isLocked": false,   // API trading function is locked or not
+                    "plannedRecoverTime": 0,  // If API trading function is locked, this is the planned recover time
+                    "triggerCondition": {
+                        "GCR": 150,  // Number of GTC orders
+                        "IFER": 150, // Number of FOK/IOC orders
+                        "UFR": 300   // Number of orders
+                    },
+                    "indicators": {  // The indicators updated every 30 seconds
+                       "BTCUSDT": [  // The symbol
+                        {
+                        "i": "UFR",  // Unfilled Ratio (UFR)
+                        "c": 20,     // Count of all orders
+                        "v": 0.05,   // Current UFR value
+                        "t": 0.995   // Trigger UFR value
+                        },
+                        {
+                        "i": "IFER", // IOC/FOK Expiration Ratio (IFER)
+                        "c": 20,     // Count of FOK/IOC orders
+                        "v": 0.99,   // Current IFER value
+                        "t": 0.99    // Trigger IFER value
+                        },
+                        {
+                        "i": "GCR",  // GTC Cancellation Ratio (GCR)
+                        "c": 20,     // Count of GTC orders
+                        "v": 0.99,   // Current GCR value
+                        "t": 0.99    // Trigger GCR value
+                        }
+                        ],
+                        "ETHUSDT": [
+                        {
+                        "i": "UFR",
+                        "c": 20,
+                        "v": 0.05,
+                        "t": 0.995
+                        },
+                        {
+                        "i": "IFER",
+                        "c": 20,
+                        "v": 0.99,
+                        "t": 0.99
+                        },
+                        {
+                        "i": "GCR",
+                        "c": 20,
+                        "v": 0.99,
+                        "t": 0.99
+                        }
+                        ]
+                    },
+                    "updateTime": 1547630471725   // The query result return time
+                }
+            }
+        :raises: BinanceWithdrawException
+        """
+        res = self._request_withdraw_api('get', 'apiTradingStatus.html', True, data=params)
+        if not res['success']:
+            raise BinanceWithdrawException(res['msg'])
+        return res
 
     # Account Endpoints
 
@@ -1730,6 +1807,325 @@ class Client(BaseClient):
         """
         return self._get('openOrders', True, data=params)
 
+    def cancel_oco(self, **params):
+        """Cancel an entire Order List
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md#cancel-oco-trade
+        :param symbol: required
+        :type symbol: str
+        :param orderListId
+        :type orderListId: long
+        :param listClientOrderId
+        :type listClientOrderId: str
+        :param newClientOrderId
+        :type newClientOrderId: str
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+
+        :returns: API response
+
+        .. code-block:: python
+
+            {
+              "orderListId": 0,
+              "contingencyType": "OCO",
+              "listStatusType": "ALL_DONE",
+              "listOrderStatus": "ALL_DONE",
+              "listClientOrderId": "C3wyj4WVEktd7u9aVBRXcN",
+              "transactionTime": 1574040868128,
+              "symbol": "LTCBTC",
+              "orders": [
+                {
+                  "symbol": "LTCBTC",
+                  "orderId": 2,
+                  "clientOrderId": "pO9ufTiFGg3nw2fOdgeOXa"
+                },
+                {
+                  "symbol": "LTCBTC",
+                  "orderId": 3,
+                  "clientOrderId": "TXOvglzXuaubXAaENpaRCB"
+                }
+              ],
+              "orderReports": [
+                {
+                  "symbol": "LTCBTC",
+                  "origClientOrderId": "pO9ufTiFGg3nw2fOdgeOXa",
+                  "orderId": 2,
+                  "orderListId": 0,
+                  "clientOrderId": "unfWT8ig8i0uj6lPuYLez6",
+                  "price": "1.00000000",
+                  "origQty": "10.00000000",
+                  "executedQty": "0.00000000",
+                  "cummulativeQuoteQty": "0.00000000",
+                  "status": "CANCELED",
+                  "timeInForce": "GTC",
+                  "type": "STOP_LOSS_LIMIT",
+                  "side": "SELL",
+                  "stopPrice": "1.00000000"
+                },
+                {
+                  "symbol": "LTCBTC",
+                  "origClientOrderId": "TXOvglzXuaubXAaENpaRCB",
+                  "orderId": 3,
+                  "orderListId": 0,
+                  "clientOrderId": "unfWT8ig8i0uj6lPuYLez6",
+                  "price": "3.00000000",
+                  "origQty": "10.00000000",
+                  "executedQty": "0.00000000",
+                  "cummulativeQuoteQty": "0.00000000",
+                  "status": "CANCELED",
+                  "timeInForce": "GTC",
+                  "type": "LIMIT_MAKER",
+                  "side": "SELL"
+                }
+              ]
+            }
+
+        :raises: BinanceRequestException, BinanceAPIException
+
+        """
+        return self._delete('orderList', True, data=params)
+
+    def get_oco(self, **params):
+        """Retrieves a specific OCO based on provided optional parameters
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md#query-oco-user_data
+        :param orderListId
+        :type orderListId: long
+        :param origClientOrderId
+        :type origClientOrderId: str
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            {
+              "orderListId": 27,
+              "contingencyType": "OCO",
+              "listStatusType": "EXEC_STARTED",
+              "listOrderStatus": "EXECUTING",
+              "listClientOrderId": "h2USkA5YQpaXHPIrkd96xE",
+              "transactionTime": 1565245656253,
+              "symbol": "LTCBTC",
+              "orders": [
+                {
+                  "symbol": "LTCBTC",
+                  "orderId": 4,
+                  "clientOrderId": "qD1gy3kc3Gx0rihm9Y3xwS"
+                },
+                {
+                  "symbol": "LTCBTC",
+                  "orderId": 5,
+                  "clientOrderId": "ARzZ9I00CPM8i3NhmU9Ega"
+                }
+              ]
+            }
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._get('orderList', True, data=params)
+
+    def get_all_ocos(self, **params):
+        """Retrieves all OCO based on provided optional parameters
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md#query-all-oco-user_data
+        :param fromId
+        :type fromId: long
+        :param startTime
+        :type startTime: long
+        :param endTime
+        :type endTime: long
+        :param limit
+        :type limit: int
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            [
+              {
+                "orderListId": 29,
+                "contingencyType": "OCO",
+                "listStatusType": "EXEC_STARTED",
+                "listOrderStatus": "EXECUTING",
+                "listClientOrderId": "amEEAXryFzFwYF1FeRpUoZ",
+                "transactionTime": 1565245913483,
+                "symbol": "LTCBTC",
+                "orders": [
+                  {
+                    "symbol": "LTCBTC",
+                    "orderId": 4,
+                    "clientOrderId": "oD7aesZqjEGlZrbtRpy5zB"
+                  },
+                  {
+                    "symbol": "LTCBTC",
+                    "orderId": 5,
+                    "clientOrderId": "Jr1h6xirOxgeJOUuYQS7V3"
+                  }
+                ]
+              },
+              {
+                "orderListId": 28,
+                "contingencyType": "OCO",
+                "listStatusType": "EXEC_STARTED",
+                "listOrderStatus": "EXECUTING",
+                "listClientOrderId": "hG7hFNxJV6cZy3Ze4AUT4d",
+                "transactionTime": 1565245913407,
+                "symbol": "LTCBTC",
+                "orders": [
+                  {
+                    "symbol": "LTCBTC",
+                    "orderId": 2,
+                    "clientOrderId": "j6lFOfbmFMRjTYA7rRJ0LP"
+                  },
+                  {
+                    "symbol": "LTCBTC",
+                    "orderId": 3,
+                    "clientOrderId": "z0KCjOdditiLS5ekAFtK81"
+                  }
+                ]
+              }
+            ]
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._get('allOrderList', True, data=params)
+
+    def get_open_ocos(self, **params):
+        """Retrieves all OCO based on provided optional parameters
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md#query-open-oco-user_data
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            [
+              {
+                "orderListId": 31,
+                "contingencyType": "OCO",
+                "listStatusType": "EXEC_STARTED",
+                "listOrderStatus": "EXECUTING",
+                "listClientOrderId": "wuB13fmulKj3YjdqWEcsnp",
+                "transactionTime": 1565246080644,
+                "symbol": "1565246079109",
+                "orders": [
+                  {
+                    "symbol": "LTCBTC",
+                    "orderId": 4,
+                    "clientOrderId": "r3EH2N76dHfLoSZWIUw1bT"
+                  },
+                  {
+                    "symbol": "LTCBTC",
+                    "orderId": 5,
+                    "clientOrderId": "Cv1SnyPD3qhqpbjpYEHbd2"
+                  }
+                ]
+              }
+            ]
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._get('openOrderList', True, data=params)
+
+    def cancel_orders(self, **params):
+        """Cancels all active orders on a symbol. This includes OCO orders.
+
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/rest-api.md#cancel-all-open-orders-on-a-symbol-trade
+
+        :param symbol: required
+        :type symbol: str
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+
+        :returns: API response
+
+        .. code-block:: python
+
+            [
+              {
+                "symbol": "BTCUSDT",
+                "origClientOrderId": "E6APeyTJvkMvLMYMqu1KQ4",
+                "orderId": 11,
+                "orderListId": -1,
+                "clientOrderId": "pXLV6Hz6mprAcVYpVMTGgx",
+                "price": "0.089853",
+                "origQty": "0.178622",
+                "executedQty": "0.000000",
+                "cummulativeQuoteQty": "0.000000",
+                "status": "CANCELED",
+                "timeInForce": "GTC",
+                "type": "LIMIT",
+                "side": "BUY"
+              },
+              {
+                "symbol": "BTCUSDT",
+                "origClientOrderId": "A3EF2HCwxgZPFMrfwbgrhv",
+                "orderId": 13,
+                "orderListId": -1,
+                "clientOrderId": "pXLV6Hz6mprAcVYpVMTGgx",
+                "price": "0.090430",
+                "origQty": "0.178622",
+                "executedQty": "0.000000",
+                "cummulativeQuoteQty": "0.000000",
+                "status": "CANCELED",
+                "timeInForce": "GTC",
+                "type": "LIMIT",
+                "side": "BUY"
+              },
+              {
+                "orderListId": 1929,
+                "contingencyType": "OCO",
+                "listStatusType": "ALL_DONE",
+                "listOrderStatus": "ALL_DONE",
+                "listClientOrderId": "2inzWQdDvZLHbbAmAozX2N",
+                "transactionTime": 1585230948299,
+                "symbol": "BTCUSDT",
+                "orders": [
+                  {
+                    "symbol": "BTCUSDT",
+                    "orderId": 20,
+                    "clientOrderId": "CwOOIPHSmYywx6jZX77TdL"
+                  },
+                  {
+                    "symbol": "BTCUSDT",
+                    "orderId": 21,
+                    "clientOrderId": "461cPg51vQjV3zIMOXNz39"
+                  }
+                ],
+                "orderReports": [
+                  {
+                    "symbol": "BTCUSDT",
+                    "origClientOrderId": "CwOOIPHSmYywx6jZX77TdL",
+                    "orderId": 20,
+                    "orderListId": 1929,
+                    "clientOrderId": "pXLV6Hz6mprAcVYpVMTGgx",
+                    "price": "0.668611",
+                    "origQty": "0.690354",
+                    "executedQty": "0.000000",
+                    "cummulativeQuoteQty": "0.000000",
+                    "status": "CANCELED",
+                    "timeInForce": "GTC",
+                    "type": "STOP_LOSS_LIMIT",
+                    "side": "BUY",
+                    "stopPrice": "0.378131",
+                    "icebergQty": "0.017083"
+                  },
+                  {
+                    "symbol": "BTCUSDT",
+                    "origClientOrderId": "461cPg51vQjV3zIMOXNz39",
+                    "orderId": 21,
+                    "orderListId": 1929,
+                    "clientOrderId": "pXLV6Hz6mprAcVYpVMTGgx",
+                    "price": "0.008791",
+                    "origQty": "0.690354",
+                    "executedQty": "0.000000",
+                    "cummulativeQuoteQty": "0.000000",
+                    "status": "CANCELED",
+                    "timeInForce": "GTC",
+                    "type": "LIMIT_MAKER",
+                    "side": "BUY",
+                    "icebergQty": "0.639962"
+                  }
+                ]
+              }
+            ]
+
+        :raises: BinanceRequestException, BinanceAPIException
+
+        """
+        return self._delete('openOrders', True, data=params)
+
     # User Stream Endpoints
     def get_account(self, **params):
         """Get current account information.
@@ -2128,6 +2524,7 @@ class Client(BaseClient):
         return res
 
     # Withdraw Endpoints
+
     def withdraw(self, **params):
         """Submit a withdraw request.
 
@@ -3175,6 +3572,269 @@ class Client(BaseClient):
         }
         return self._request_margin_api('delete', 'userDataStream', signed=True, data=params)
 
+    def get_all_margin_assets(self, **params):
+        """Query all margin assets
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/margin-api.md#get-all-margin-assets-market_data
+        :returns: API response
+
+        .. code-block:: python
+
+            [
+              {
+                  "assetFullName": "USD coin",
+                  "assetName": "USDC",
+                  "isBorrowable": true,
+                  "isMortgageable": true,
+                  "userMinBorrow": "0.00000000",
+                  "userMinRepay": "0.00000000"
+              },
+              {
+                  "assetFullName": "BNB-coin",
+                  "assetName": "BNB",
+                  "isBorrowable": true,
+                  "isMortgageable": true,
+                  "userMinBorrow": "1.00000000",
+                  "userMinRepay": "0.00000000"
+              },
+              {
+                  "assetFullName": "Tether",
+                  "assetName": "USDT",
+                  "isBorrowable": true,
+                  "isMortgageable": true,
+                  "userMinBorrow": "1.00000000",
+                  "userMinRepay": "0.00000000"
+              },
+              {
+                  "assetFullName": "etherum",
+                  "assetName": "ETH",
+                  "isBorrowable": true,
+                  "isMortgageable": true,
+                  "userMinBorrow": "0.00000000",
+                  "userMinRepay": "0.00000000"
+              },
+              {
+                  "assetFullName": "Bitcoin",
+                  "assetName": "BTC",
+                  "isBorrowable": true,
+                  "isMortgageable": true,
+                  "userMinBorrow": "0.00000000",
+                  "userMinRepay": "0.00000000"
+              }
+            ]
+
+        :raises: BinanceRequestException, BinanceAPIException
+
+        """
+        return self._request_margin_api('get', 'margin/allAssets', data=params)
+
+    def get_all_margin_symbols(self, **params):
+        """Query all margin symbol info
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/margin-api.md#get-all-margin-pairs-market_data
+        :returns: API response
+        .. code-block:: python
+            [
+                {
+                    "base": "BNB",
+                    "id": 351637150141315861,
+                    "isBuyAllowed": True,
+                    "isMarginTrade": True,
+                    "isSellAllowed": True,
+                    "quote": "BTC",
+                    "symbol": "BNBBTC"
+                },
+                {
+                    "base": "TRX",
+                    "id": 351637923235429141,
+                    "isBuyAllowed": True,
+                    "isMarginTrade": True,
+                    "isSellAllowed": True,
+                    "quote": "BTC",
+                    "symbol": "TRXBTC"
+                },
+                {
+                    "base": "XRP",
+                    "id": 351638112213990165,
+                    "isBuyAllowed": True,
+                    "isMarginTrade": True,
+                    "isSellAllowed": True,
+                    "quote": "BTC",
+                    "symbol": "XRPBTC"
+                },
+                {
+                    "base": "ETH",
+                    "id": 351638524530850581,
+                    "isBuyAllowed": True,
+                    "isMarginTrade": True,
+                    "isSellAllowed": True,
+                    "quote": "BTC",
+                    "symbol": "ETHBTC"
+                },
+                {
+                    "base": "BNB",
+                    "id": 376870400832855109,
+                    "isBuyAllowed": True,
+                    "isMarginTrade": True,
+                    "isSellAllowed": True,
+                    "quote": "USDT",
+                    "symbol": "BNBUSDT"
+                },
+            ]
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._request_margin_api('get', 'margin/allPairs', data=params)
+
+    def get_margin_transfer_history(self, **params):
+        """Get transfer between margin account and spot account.
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/margin-api.md#get-transfer-history-user_data
+        :param asset: name of the asset
+        :type asset: str
+        :param type: required
+        :type type: 'ROLL_IN' or 'ROLL_OUT'
+        :param startTime
+        :type startTime: long
+        :param endTime
+        :type endTime: long
+        :param current
+        :type current: long
+        :param size
+        :type size: long
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            {
+                "rows": [
+                {
+                    "amount: "0.10000000",
+                    "asset": "BNB",
+                    "status": "CONFIRMED",
+                    "timestamp": 1566898617,
+                    "txId": 5240372201,
+                    "type": "ROLL_IN"
+                },
+                {
+                    "amount": "5.00000000",
+                    "asset": "USDT",
+                    "status": "CONFIRMED",
+                    "timestamp": 1566888436,
+                    "txId": 5239810406,
+                    "type": "ROLL_OUT"
+                },
+                {
+                    "amount": "1.00000000",
+                    "asset": "EOS,
+                    "status": "CONFIRMED",
+                    "timestamp": 1566888403,
+                    "txId": 5239808703,
+                    "type": "ROLL_IN"
+                }
+                "total": 3
+            }
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._request_margin_api('get', 'margin/transfer', signed=True, data=params)
+
+    def get_margin_interest_history(self, **params):
+        """Get margin interest history
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/margin-api.md#get-interest-history-user_data
+        :param asset: name of the asset
+        :type asset: str
+        :param startTime
+        :type startTime: long
+        :param endTime
+        :type endTime: long
+        :param current
+        :type current: long
+        :param size
+        :type size: long
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            {
+              "rows": [
+                  {
+                      "asset": "BNB",
+                      "interest": "0.02414667",
+                      "interestAccuredTime": 1566813600,
+                      "interestRate": "0.01600000",
+                      "principal": "36.22000000",
+                      "type": "ON_BORROW"
+                  },
+                  {
+                      "asset": "BNB",
+                      "interest": "0.02019334",
+                      "interestAccuredTime": 1566813600,
+                      "interestRate": "0.01600000",
+                      "principal": "30.29000000",
+                      "type": "ON_BORROW"
+                  },
+                  {
+                      "asset": "BNB",
+                      "interest": "0.02098667",
+                      "interestAccuredTime": 1566813600,
+                      "interestRate": "0.01600000",
+                      "principal": "31.48000000",
+                      "type": "ON_BORROW"
+                  },
+                  {
+                      "asset": "BNB",
+                      "interest": "0.02483334",
+                      "interestAccuredTime": 1566806400,
+                      "interestRate": "0.01600000",
+                      "principal": "37.25000000",
+                      "type": "ON_BORROW"
+                  },
+                  {
+                      "asset": "BNB",
+                      "interest": "0.02165334",
+                      "interestAccuredTime": 1566806400,
+                      "interestRate": "0.01600000",
+                      "principal": "32.48000000",
+                      "type": "ON_BORROW"
+                  }
+              ],
+              "total": 5
+            }
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._request_margin_api('get', 'margin/interestHistory', signed=True, data=params)
+
+    def get_force_liquidation_records(self, **params):
+        """Get force liquidation records
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/margin-api.md#get-force-liquidation-record-user_data
+        :param startTime
+        :type startTime: long
+        :param endTime
+        :type endTime: long
+        :param current
+        :type current: long
+        :param size
+        :type size: long
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            {
+              "rows": [
+                  {
+                      "avgPrice": "0.00388359",
+                      "executedQty": "31.39000000",
+                      "orderId": 180015097,
+                      "price": "0.00388110",
+                      "qty": "31.39000000",
+                      "side": "SELL",
+                      "symbol": "BNBBTC",
+                      "timeInForce": "GTC",
+                      "updatedTime": 1558941374745
+                  }
+              ],
+              "total": 1
+            }
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._request_margin_api('get', 'margin/forceLiquidationRec', signed=True, data=params)
+
     # Lending Endpoints
 
     def get_lending_product_list(self, **params):
@@ -3592,6 +4252,12 @@ class Client(BaseClient):
         """
         return self._request_futures_api('get', 'order', True, data=params)
 
+    def futures_get_open_order(self, **params):
+        """Get open order given orderId or origClientOrderId
+        https://binance-docs.github.io/apidocs/futures/en/#query-current-open-order-user_data
+        """
+        return self._request_futures_api('get', 'openOrder', True, data=params)
+
     def futures_get_open_orders(self, **params):
         """Get all open orders on a symbol.
 
@@ -3703,6 +4369,331 @@ class Client(BaseClient):
 
         """
         return self._request_futures_api('get', 'income', True, data=params)
+
+    def transfer_futures_to_spot(self, **params):
+        """Execute transfer between spot account and futures account.
+        https://binance-docs.github.io/apidocs/futures/en/#new-future-account-transfer
+        :param asset: required
+        :type asset: str
+        :param amount: required
+        :type amount: str
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            {
+                "tranId": 100000001
+            }
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        params['type'] = 2
+        return self._request_margin_api('post', 'futures/transfer', signed=True, data=params)
+
+    def transfer_spot_to_futures(self, **params):
+        """Execute transfer between spot account and futures account.
+        https://binance-docs.github.io/apidocs/futures/en/#new-future-account-transfer
+        :param asset: required
+        :type asset: str
+        :param amount: required
+        :type amount: str
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            {
+                "tranId": 100000001
+            }
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        params['type'] = 1
+        return self._request_margin_api('post', 'futures/transfer', signed=True, data=params)
+
+    def futures_change_position_mode(self, **params):
+        """Change user's position mode (Hedge Mode or One-way Mode) on EVERY symbol
+        https://binance-docs.github.io/apidocs/futures/en/#change-position-mode-trade
+        """
+        return self._request_futures_api('post', 'positionSide/dual', True, data=params)
+
+    def futures_get_position_mode(self, **params):
+        """Get user's position mode (Hedge Mode or One-way Mode) on EVERY symbol
+        https://binance-docs.github.io/apidocs/futures/en/#get-current-position-mode-trade
+        """
+        return self._request_futures_api('get', 'positionSide/dual', True, data=params)
+
+    def futures_batch_order(self, **params):
+        """Place multiple orders concurrently.
+        https://binance-docs.github.io/apidocs/futures/en/#place-multiple-orders-trade
+        """
+        return self._request_futures_api('post', 'batchOrders', True, data=params)
+
+    # Traditional Futures API (Manual Update)
+
+    def tfutures_ping(self):
+        """Test connectivity to the Rest API
+        https://binance-docs.github.io/apidocs/delivery/en/#test-connectivity
+        """
+        return self._request_tfutures_api('get', 'ping')
+
+    def tfutures_time(self):
+        """Test connectivity to the Rest API and get the current server time.
+        https://binance-docs.github.io/apidocs/delivery/en/#check-server-time
+        """
+        return self._request_tfutures_api('get', 'time')
+
+    def tfutures_exchange_info(self):
+        """Current exchange trading rules and symbol information
+        https://binance-docs.github.io/apidocs/delivery/en/#exchange-information
+        """
+        return self._request_tfutures_api('get', 'exchangeInfo')
+
+    def tfutures_order_book(self, **params):
+        """Get the Order Book for the market
+        https://binance-docs.github.io/apidocs/delivery/en/#order-book
+        """
+        return self._request_tfutures_api('get', 'depth', data=params)
+
+    def tfutures_recent_trades(self, **params):
+        """Get recent trades (up to last 24hr).
+        https://binance-docs.github.io/apidocs/delivery/en/#recent-trades-list
+        """
+        return self._request_tfutures_api('get', 'trades', data=params)
+
+    def tfutures_historical_trades(self, **params):
+        """Get older market historical trades.
+        https://binance-docs.github.io/apidocs/delivery/en/#old-trades-lookup-market_data
+        """
+        return self._request_tfutures_api('get', 'historicalTrades', data=params)
+
+    def tfutures_aggregate_trades(self, **params):
+        """Get compressed, aggregate trades. Trades that fill at the time, from the same order, with the same
+        price will have the quantity aggregated.
+        https://binance-docs.github.io/apidocs/delivery/en/#compressed-aggregate-trades-list
+        """
+        return self._request_tfutures_api('get', 'aggTrades', data=params)
+
+    def tfutures_mark_price(self, **params):
+        """Get Index Price, Mark Price and Estimated Settlement Price.
+        https://binance-docs.github.io/apidocs/delivery/en/#index-price-and-mark-price
+        """
+        return self._request_tfutures_api('get', 'premiumIndex', data=params)
+
+    def tfutures_klines(self, **params):
+        """Kline/candlestick bars for a symbol. Klines are uniquely identified by their open time.
+        https://binance-docs.github.io/apidocs/delivery/en/#kline-candlestick-data
+        """
+        return self._request_tfutures_api('get', 'klines', data=params)
+
+    def tfutures_continuous_klines(self, **params):
+        """Kline/candlestick bars for a specific contract type. Klines are uniquely identified by their open time.
+        https://binance-docs.github.io/apidocs/delivery/en/#continues-contract-kline-candlestick-data
+        """
+        return self._request_tfutures_api('get', 'continuousKlines', data=params)
+
+    def tfutures_index_price_klines(self, **params):
+        """Kline/candlestick bars for the index price of a pair. Klines are uniquely identified by their open time.
+        https://binance-docs.github.io/apidocs/delivery/en/#index-price-kline-candlestick-data
+        """
+        return self._request_tfutures_api('get', 'indexPriceKlines', data=params)
+
+    def tfutures_mark_price_klines(self, **params):
+        """Kline/candlestick bars for the mark price of a symbol. Klines are uniquely identified by their open time.
+        https://binance-docs.github.io/apidocs/delivery/en/#mark-price-kline-candlestick-data
+        """
+        return self._request_tfutures_api('get', 'markPriceKlines', data=params)
+
+    def tfutures_ticker(self, **params):
+        """24 hour rolling window price change statistics.
+        https://binance-docs.github.io/apidocs/delivery/en/#24hr-ticker-price-change-statistics
+        """
+        return self._request_tfutures_api('get', 'ticker/24hr', data=params)
+
+    def tfutures_symbol_ticker(self, **params):
+        """Latest price for a symbol or symbols.
+        https://binance-docs.github.io/apidocs/delivery/en/#symbol-price-ticker
+        """
+        return self._request_tfutures_api('get', 'ticker/price', data=params)
+
+    def tfutures_orderbook_ticker(self, **params):
+        """Best price/qty on the order book for a symbol or symbols.
+        https://binance-docs.github.io/apidocs/delivery/en/#symbol-order-book-ticker
+        """
+        return self._request_tfutures_api('get', 'ticker/bookTicker', data=params)
+
+    def tfutures_liquidation_orders(self, **params):
+        """Get all liquidation orders
+        https://binance-docs.github.io/apidocs/delivery/en/#get-all-liquidation-orders
+        """
+        return self._request_tfutures_api('get', 'allForceOrders', data=params)
+
+    def tfutures_open_interest(self, **params):
+        """Get present open interest of a specific symbol.
+        https://binance-docs.github.io/apidocs/delivery/en/#open-interest
+        """
+        return self._request_tfutures_api('get', 'openInterest', data=params)
+
+    def transfer_tfutures_to_spot(self, **params):
+        """Execute transfer between spot account and futures account.
+        https://binance-docs.github.io/apidocs/delivery/en/#new-future-account-transfer
+        :param asset: required
+        :type asset: str
+        :param amount: required
+        :type amount: str
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            {
+                "tranId": 100000001
+            }
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        params['type'] = 4
+        return self._request_margin_api('post', 'futures/transfer', signed=True, data=params)
+
+    def transfer_spot_to_tfutures(self, **params):
+        """Execute transfer between spot account and futures account.
+        https://binance-docs.github.io/apidocs/delivery/en/#new-future-account-transfer
+        :param asset: required
+        :type asset: str
+        :param amount: required
+        :type amount: str
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            {
+                "tranId": 100000001
+            }
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        params['type'] = 3
+        return self._request_margin_api('post', 'futures/transfer', signed=True, data=params)
+
+    def tfutures_change_position_mode(self, **params):
+        """Change user's position mode (Hedge Mode or One-way Mode) on EVERY symbol
+        https://binance-docs.github.io/apidocs/delivery/en/#change-position-mode-trade
+        """
+        return self._request_tfutures_api('post', 'positionSide/dual', True, data=params)
+
+    def tfutures_get_position_mode(self, **params):
+        """Get user's position mode (Hedge Mode or One-way Mode) on EVERY symbol
+        https://binance-docs.github.io/apidocs/delivery/en/#get-current-position-mode-user_data
+        """
+        return self._request_tfutures_api('get', 'positionSide/dual', True, data=params)
+
+    def tfutures_create_order(self, **params):
+        """Send in a new order.
+        https://binance-docs.github.io/apidocs/delivery/en/#new-order-trade
+        """
+        return self._request_tfutures_api('post', 'order', True, data=params)
+
+    def tfutures_batch_order(self, **params):
+        """Place multiple orders concurrently.
+        https://binance-docs.github.io/apidocs/delivery/en/#place-multiple-orders-trade
+        """
+        return self._request_tfutures_api('post', 'batchOrders', True, data=params)
+
+    def tfutures_get_order(self, **params):
+        """Check an order's status.
+        https://binance-docs.github.io/apidocs/delivery/en/#query-order-user_data
+        """
+        return self._request_tfutures_api('get', 'order', True, data=params)
+
+    def tfutures_cancel_order(self, **params):
+        """Cancel an active order.
+        https://binance-docs.github.io/apidocs/delivery/en/#cancel-order-trade
+        """
+        return self._request_tfutures_api('delete', 'order', True, data=params)
+
+    def tfutures_cancel_all_open_orders(self, **params):
+        """Cancel all open futures orders
+        https://binance-docs.github.io/apidocs/delivery/en/#cancel-all-open-orders-trade
+        """
+        return self._request_tfutures_api('delete', 'allOpenOrders', True, data=params)
+
+    def tfutures_cancel_orders(self, **params):
+        """Cancel multiple futures orders
+        https://binance-docs.github.io/apidocs/delivery/en/#cancel-multiple-orders-trade
+        """
+        return self._request_tfutures_api('delete', 'batchOrders', True, data=params)
+
+    def tfutures_auto_cancel_all_open_orders(self, **params):
+        """Cancel all open orders of the specified symbol at the end of the specified countdown.
+        https://binance-docs.github.io/apidocs/delivery/en/#auto-cancel-all-open-orders-trade
+        """
+        return self._request_tfutures_api('post', 'countdownCancelAll', True, data=params)
+
+    def tfutures_get_open_order(self, **params):
+        """Get open order given orderId or origClientOrderId
+        https://binance-docs.github.io/apidocs/delivery/en/#query-current-open-order-user_data
+        """
+        return self._request_tfutures_api('get', 'openOrder', True, data=params)
+
+    def tfutures_get_open_orders(self, **params):
+        """Get all open orders on a symbol.
+        https://binance-docs.github.io/apidocs/delivery/en/#current-all-open-orders-user_data
+        """
+        return self._request_tfutures_api('get', 'openOrders', True, data=params)
+
+    def tfutures_get_all_orders(self, **params):
+        """Get all futures account orders; active, canceled, or filled.
+        https://binance-docs.github.io/apidocs/futures/en/#all-orders-user_data
+        """
+        return self._request_tfutures_api('get', 'allOrders', True, data=params)
+
+    def tfutures_account_balance(self, **params):
+        """Get futures account balance
+        https://binance-docs.github.io/apidocs/delivery/en/#futures-account-balance-user_data
+        """
+        return self._request_tfutures_api('get', 'balance', True, data=params)
+
+    def tfutures_change_leverage(self, **params):
+        """Change user's initial leverage of specific symbol market
+        https://binance-docs.github.io/apidocs/delivery/en/#change-initial-leverage-trade
+        """
+        return self._request_tfutures_api('post', 'leverage', True, data=params)
+
+    def tfutures_change_margin_type(self, **params):
+        """Change the margin type for a symbol
+        https://binance-docs.github.io/apidocs/delivery/en/#change-margin-type-trade
+        """
+        return self._request_tfutures_api('post', 'marginType', True, data=params)
+
+    def tfutures_change_position_margin(self, **params):
+        """Change the position margin for a symbol
+        https://binance-docs.github.io/apidocs/delivery/en/#modify-isolated-position-margin-trade
+        """
+        return self._request_tfutures_api('post', 'positionMargin', True, data=params)
+
+    def tfutures_position_margin_history(self, **params):
+        """Get position margin change history
+        https://binance-docs.github.io/apidocs/delivery/en/#get-position-margin-change-history-trade
+        """
+        return self._request_tfutures_api('get', 'positionMargin/history', True, data=params)
+
+    def tfutures_position_information(self, **params):
+        """Get position information
+        https://binance-docs.github.io/apidocs/delivery/en/#position-information-user_data
+        """
+        return self._request_tfutures_api('get', 'positionRisk', True, data=params)
+
+    def tfutures_account_trades(self, **params):
+        """Get trades for the authenticated account and symbol.
+        https://binance-docs.github.io/apidocs/delivery/en/#account-trade-list-user_data
+        """
+        return self._request_tfutures_api('get', 'userTrades', True, data=params)
+
+    def tfutures_income_history(self, **params):
+        """Get income history for authenticated account
+        https://binance-docs.github.io/apidocs/delivery/en/#get-income-history-user_data
+        """
+        return self._request_tfutures_api('get', 'income', True, data=params)
+
+    def tfutures_leverage_bracket(self, **params):
+        """Notional and Leverage Brackets
+        https://binance-docs.github.io/apidocs/delivery/en/#notional-bracket-user_data
+        """
+        return self._request_tfutures_api('get', 'leverageBracket', data=params)
 
 
 class AsyncClient(BaseClient):
