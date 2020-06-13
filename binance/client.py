@@ -166,7 +166,7 @@ class BaseClient(ABC):
             params.append(('signature', data['signature']))
         return params
 
-    def _get_request_kwargs(self, method, signed, force_params=False, **kwargs):
+    def _get_request_kwargs(self, method, uri, signed, force_params=False, **kwargs):
 
         # set default requests timeout
         kwargs['timeout'] = 10
@@ -225,7 +225,7 @@ class Client(BaseClient):
 
     def _request(self, method, uri, signed, force_params=False, **kwargs):
 
-        kwargs = self._get_request_kwargs(method, signed, force_params, **kwargs)
+        kwargs = self._get_request_kwargs(method, uri, signed, force_params, **kwargs)
 
         response = getattr(self.session, method)(uri, **kwargs)
         return self._handle_response(response)
@@ -4714,7 +4714,7 @@ class AsyncClient(BaseClient):
         return session
 
     async def _request(self, method, uri, signed, force_params=False, **kwargs):
-        kwargs = self._get_request_kwargs(method, signed, force_params, **kwargs)
+        kwargs = self._get_request_kwargs(method, uri, signed, force_params, **kwargs)
 
         async with getattr(self.session, method)(uri, **kwargs) as response:
             return await self._handle_response(response)
