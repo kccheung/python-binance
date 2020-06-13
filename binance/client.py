@@ -204,8 +204,7 @@ class BaseClient(ABC):
             kwargs['params'] = '&'.join('%s=%s' % (data[0], data[1]) for data in kwargs['data'])
             del (kwargs['data'])
 
-        self.response = getattr(self.session, method)(uri, **kwargs)
-        return self._handle_response()
+        return kwargs
 
 
 class Client(BaseClient):
@@ -245,18 +244,17 @@ class Client(BaseClient):
 
         return self._request(method, uri, signed, True, **kwargs)
 
-    @staticmethod
-    def _handle_response(self):
+    def _handle_response(self, response):
         """Internal helper for handling API responses from the Binance server.
         Raises the appropriate exceptions when necessary; otherwise, returns the
         response.
         """
-        if not str(self.response.status_code).startswith('2'):
-            raise BinanceAPIException(self.response, self.response.status_code, self.response.text)
+        if not str(response.status_code).startswith('2'):
+            raise BinanceAPIException(response, response.status_code, response.text)
         try:
-            return self.response.json()
+            return response.json()
         except ValueError:
-            raise BinanceRequestException('Invalid Response: %s' % self.response.text)
+            raise BinanceRequestException('Invalid Response: %s' % response.text)
 
     def _request_api(self, method, path, signed=False, version=None, **kwargs):
         uri = self._create_api_uri(path, signed, version)
