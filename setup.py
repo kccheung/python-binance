@@ -27,7 +27,7 @@ setup(
     author_email='',
     install_requires=[
         'requests', 'six', 'Twisted', 'pyOpenSSL', 'autobahn', 'service-identity', 'dateparser', 'urllib3', 'chardet', 'certifi',
-        'cryptography', 'aiohttp'
+        'cryptography', 'aiohttp', 'websockets'
     ],
     keywords='binance exchange rest api bitcoin ethereum btc eth neo',
     classifiers=[
@@ -38,6 +38,7 @@ setup(
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
         'Programming Language :: Python',
         'Topic :: Software Development :: Libraries :: Python Modules',
     ],
