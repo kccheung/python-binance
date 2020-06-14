@@ -621,6 +621,14 @@ class BinanceSocketManager:
         await self._start_socket(path, coro, 'stream?')
         return path
 
+    async def start_arbitrary_socket(self, ws_domain, path, coro, prefix='ws/'):
+        if path in self._conns:
+            return False
+
+        self._conns[path] = ReconnectingWebsocket(self._loop, ws_domain, path, coro, prefix)
+
+        return path
+
     async def start_user_socket(self, coro):
         """Start a websocket for user data
 
