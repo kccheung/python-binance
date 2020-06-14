@@ -4645,6 +4645,12 @@ class Client(BaseClient):
         """
         return self._request_tfutures_api('get', 'balance', True, data=params)
 
+    def tfutures_account(self, **params):
+        """Get futures account information
+        https://binance-docs.github.io/apidocs/delivery/en/#account-information-user_data
+        """
+        return self._request_tfutures_api('get', 'account', True, data=params)
+
     def tfutures_change_leverage(self, **params):
         """Change user's initial leverage of specific symbol market
         https://binance-docs.github.io/apidocs/delivery/en/#change-initial-leverage-trade
