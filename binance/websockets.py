@@ -8,10 +8,10 @@ from .client import Client
 
 
 class ReconnectingWebsocket:
-    MAX_RECONNECTS = 5
-    MAX_RECONNECT_SECONDS = 60
+    MAX_RECONNECTS = 1000
+    MAX_RECONNECT_SECONDS = 1
     MIN_RECONNECT_WAIT = 0.1
-    TIMEOUT = 10
+    TIMEOUT = 2
 
     def __init__(self, loop, ws_domain, path, coro, prefix='ws/'):
         self._loop = loop
@@ -30,7 +30,7 @@ class ReconnectingWebsocket:
         self._conn = asyncio.ensure_future(self._run(), loop=self._loop)
 
     async def _run(self):
-
+        self._log.debug('running ws')
         keep_waiting = True
 
         ws_url = self.ws_domain + self._prefix + self._path
@@ -57,10 +57,12 @@ class ReconnectingWebsocket:
                             asyncio.run_coroutine_threadsafe(self._coro(evt_obj), self._loop)
             except ws.ConnectionClosed as e:
                 self._log.debug('ws connection closed:{}'.format(e))
-                await self._reconnect()
+                # await self._reconnect()
+                self._reconnect_sync()
             except Exception as e:
                 self._log.debug('ws exception:{}'.format(e))
-                await self._reconnect()
+                # await self._reconnect()
+                self._reconnect_sync()
 
     def _get_reconnect_wait(self, attempts: int) -> int:
         expo = 2 ** attempts
@@ -76,6 +78,26 @@ class ReconnectingWebsocket:
             )
             reconnect_wait = self._get_reconnect_wait(self._reconnects)
             await asyncio.sleep(reconnect_wait)
+            self._connect()
+        else:
+            self._log.error('Max reconnections {} reached:'.format(self.MAX_RECONNECTS))
+
+    def _reconnect_sync(self):
+        self._log.debug('cancelling ws connection and reconnecting')
+        if self._conn:
+            if not self._conn.cancelled():
+                self._conn.cancel()
+            else:
+                self._conn = None
+        self._socket = None
+        # self._log.debug('cancelled')
+        self._reconnects += 1
+        if self._reconnects < self.MAX_RECONNECTS:
+
+            self._log.debug("websocket {} reconnecting {} reconnects left".format(
+                self._path, self.MAX_RECONNECTS - self._reconnects)
+            )
+            time.sleep(self.MIN_RECONNECT_WAIT)
             self._connect()
         else:
             self._log.error('Max reconnections {} reached:'.format(self.MAX_RECONNECTS))
@@ -139,7 +161,7 @@ class BinanceSocketManager:
         self._conns[path] = ReconnectingWebsocket(self._loop, self.FSTREAM_URL, path, coro, prefix)
         return path
 
-    async def start_depth_socket(self, symbol, coro, depth=None):
+    async def start_depth_socket(self, symbol, coro, depth=20, update_time_ms=100):
         """Start a websocket for symbol market depth returning either a diff or a partial book
 
         https://github.com/binance-exchange/binance-official-api-docs/blob/master/web-socket-streams.md#partial-book-depth-streams
@@ -148,8 +170,10 @@ class BinanceSocketManager:
         :type symbol: str
         :param coro: callback coroutine to handle messages
         :type coro: async coroutine
-        :param depth: optional Number of depth entries to return, default None. If passed returns a partial book instead of a diff
-        :type depth: str
+        :param depth: optional Number of depth entries to return, default 20. If passed returns a partial book instead of a diff
+        :type depth: int
+        :param update_time_ms: optional int of update frequency in ms, default 100ms.
+        :type update_time_ms: int
 
         :returns: connection key string if successful, False otherwise
 
@@ -203,10 +227,13 @@ class BinanceSocketManager:
             }
 
         """
-        socket_name = symbol.lower() + '@depth'
-        if depth and depth != '1':
-            socket_name = '{}{}'.format(socket_name, depth)
-        await self._start_socket(socket_name, coro)
+        path = symbol.lower() + '@depth'
+        if update_time_ms == 1000:
+            path = '{}{}'.format(path, depth)
+        else:
+            path = '{}{}@{}ms'.format(path, depth, update_time_ms)
+        await self._start_socket(path, coro)
+        return path
 
     async def start_kline_socket(self, symbol, coro, interval=Client.KLINE_INTERVAL_1MINUTE):
         """Start a websocket for symbol kline data
@@ -663,7 +690,7 @@ class BinanceSocketManager:
 
         # disable reconnecting if we are closing
         await self._conns[conn_key].cancel()
-        del(self._conns[conn_key])
+        del (self._conns[conn_key])
 
         # check if we have a user stream socket
         if len(conn_key) >= 60 and conn_key[:60] == self._user_listen_key:
