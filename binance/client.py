@@ -99,6 +99,7 @@ class BaseClient(ABC):
         self.MARGIN_API_URL = self.MARGIN_API_URL.format(tld)
         self.WEBSITE_URL = self.WEBSITE_URL.format(tld)
         self.FUTURES_URL = self.FUTURES_URL.format(tld)
+        self.TRADITIONAL_FUTURES_URL = self.TRADITIONAL_FUTURES_URL.format(tld)
 
         self.API_KEY = api_key
         self.API_SECRET = api_secret
@@ -223,7 +224,6 @@ class Client(BaseClient):
         return session
 
     def _request(self, method, uri, signed, force_params=False, **kwargs):
-
         kwargs = self._get_request_kwargs(method, uri, signed, force_params, **kwargs)
 
         response = getattr(self.session, method)(uri, **kwargs)
@@ -231,17 +231,14 @@ class Client(BaseClient):
 
     def _request_margin_api(self, method, path, signed=False, **kwargs):
         uri = self._create_margin_api_uri(path)
-
         return self._request(method, uri, signed, **kwargs)
 
     def _request_futures_api(self, method, path, signed=False, **kwargs):
         uri = self._create_futures_api_uri(path)
-
         return self._request(method, uri, signed, True, **kwargs)
 
     def _request_tfutures_api(self, method, path, signed=False, **kwargs):
         uri = self._create_tfutures_api_uri(path)
-
         return self._request(method, uri, signed, True, **kwargs)
 
     def _handle_response(self, response):
@@ -4723,6 +4720,18 @@ class AsyncClient(BaseClient):
         async with getattr(self.session, method)(uri, **kwargs) as response:
             return await self._handle_response(response)
 
+    async def _request_margin_api(self, method, path, signed=False, **kwargs):
+        uri = self._create_margin_api_uri(path)
+        return await self._request(method, uri, signed, **kwargs)
+
+    async def _request_futures_api(self, method, path, signed=False, **kwargs):
+        uri = self._create_futures_api_uri(path)
+        return await self._request(method, uri, signed, True, **kwargs)
+
+    async def _request_tfutures_api(self, method, path, signed=False, **kwargs):
+        uri = self._create_tfutures_api_uri(path)
+        return await self._request(method, uri, signed, True, **kwargs)
+
     async def _handle_response(self, response):
         """Internal helper for handling API responses from the Binance server.
         Raises the appropriate exceptions when necessary; otherwise, returns the
@@ -5006,6 +5015,11 @@ class AsyncClient(BaseClient):
 
     get_historical_klines_generator.__doc__ = Client.get_historical_klines_generator.__doc__
 
+    async def get_avg_price(self, **params):
+        return await self._get('avgPrice', data=params, version=self.PRIVATE_API_VERSION)
+
+    get_avg_price.__doc__ = Client.get_avg_price.__doc__
+
     async def get_ticker(self, **params):
         return await self._get('ticker/24hr', data=params)
 
@@ -5020,6 +5034,14 @@ class AsyncClient(BaseClient):
         return await self._get('ticker/bookTicker', data=params, version=self.PRIVATE_API_VERSION)
 
     get_orderbook_ticker.__doc__ = Client.get_orderbook_ticker.__doc__
+
+    async def get_api_trading_status(self, **params):
+        res = await self._request_withdraw_api('get', 'apiTradingStatus.html', True, data=params)
+        if not res['success']:
+            raise BinanceWithdrawException(res['msg'])
+        return res
+
+    get_api_trading_status.__doc__ = Client.get_api_trading_status.__doc__
 
     # Account Endpoints
 
@@ -5077,6 +5099,27 @@ class AsyncClient(BaseClient):
 
     order_market_sell.__doc__ = Client.order_market_sell.__doc__
 
+    async def create_oco_order(self, **params):
+        return await self._post('order/oco', True, data=params)
+
+    create_oco_order.__doc__ = Client.create_oco_order.__doc__
+
+    async def order_oco_buy(self, **params):
+        params.update({
+            'side': self.SIDE_BUY
+        })
+        return await self.create_oco_order(**params)
+
+    order_oco_buy.__doc__ = Client.order_oco_buy.__doc__
+
+    async def order_oco_sell(self, **params):
+        params.update({
+            'side': self.SIDE_SELL
+        })
+        return await self.create_oco_order(**params)
+
+    order_oco_sell.__doc__ = Client.order_oco_sell.__doc__
+
     async def create_test_order(self, **params):
         return await self._post('order/test', True, data=params)
 
@@ -5101,6 +5144,31 @@ class AsyncClient(BaseClient):
         return await self._get('openOrders', True, data=params)
 
     get_open_orders.__doc__ = Client.get_open_orders.__doc__
+
+    async def cancel_oco(self, **params):
+        return await self._delete('orderList', True, data=params)
+
+    cancel_oco.__doc__ = Client.cancel_oco.__doc__
+
+    async def get_oco(self, **params):
+        return await self._get('orderList', True, data=params)
+
+    get_oco.__doc__ = Client.get_oco.__doc__
+
+    async def get_all_ocos(self, **params):
+        return await self._get('allOrderList', True, data=params)
+
+    get_all_ocos.__doc__ = Client.get_all_ocos.__doc__
+
+    async def get_open_ocos(self, **params):
+        return await self._get('openOrderList', True, data=params)
+
+    get_open_ocos.__doc__ = Client.get_open_ocos.__doc__
+
+    async def cancel_orders(self, **params):
+        return await self._delete('openOrders', True, data=params)
+
+    cancel_orders.__doc__ = Client.cancel_orders.__doc__
 
     # User Stream Endpoints
     async def get_account(self, **params):
@@ -5136,6 +5204,40 @@ class AsyncClient(BaseClient):
         return res
 
     get_account_status.__doc__ = Client.get_account_status.__doc__
+
+    async def get_dust_log(self, **params):
+        res = await self._request_withdraw_api('get', 'userAssetDribbletLog.html', True, data=params)
+        if not res['success']:
+            raise BinanceWithdrawException(res['msg'])
+        return res
+
+    get_dust_log.__doc__ = Client.get_dust_log.__doc__
+
+    async def transfer_dust(self, **params):
+        return await self._request_margin_api('post', 'asset/dust', True, data=params)
+
+    transfer_dust.__doc__ = Client.transfer_dust.__doc__
+
+    async def get_asset_dividend_history(self, **params):
+        return await self._request_margin_api('post', 'asset/assetDividend', True, data=params)
+
+    get_asset_dividend_history.__doc__ = Client.get_asset_dividend_history.__doc__
+
+    async def get_trade_fee(self, **params):
+        res = await self._request_withdraw_api('get', 'tradeFee.html', True, data=params)
+        if not res['success']:
+            raise BinanceWithdrawException(res['msg'])
+        return res
+
+    get_trade_fee.__doc__ = Client.get_trade_fee.__doc__
+
+    async def get_asset_details(self, **params):
+        res = await self._request_withdraw_api('get', 'assetDetail.html', True, data=params)
+        if not res['success']:
+            raise BinanceWithdrawException(res['msg'])
+        return res
+
+    get_asset_details.__doc__ = Client.get_asset_details.__doc__
 
     # Withdraw Endpoints
 
@@ -5188,3 +5290,385 @@ class AsyncClient(BaseClient):
         return await self._delete('userDataStream', False, data=params)
 
     stream_close.__doc__ = Client.stream_close.__doc__
+
+    # Margin Trading Endpoints
+    async def get_margin_account(self, **params):
+        return await self._request_margin_api('get', 'margin/account', True, data=params)
+
+    async def get_margin_asset(self, **params):
+        return await self._request_margin_api('get', 'margin/asset', data=params)
+
+    async def get_margin_symbol(self, **params):
+        return await self._request_margin_api('get', 'margin/pair', data=params)
+
+    async def get_margin_price_index(self, **params):
+        return await self._request_margin_api('get', 'margin/priceIndex', data=params)
+
+    async def transfer_margin_to_spot(self, **params):
+        params['type'] = 2
+        return await self._request_margin_api('post', 'margin/transfer', signed=True, data=params)
+
+    async def transfer_spot_to_margin(self, **params):
+        params['type'] = 1
+        return await self._request_margin_api('post', 'margin/transfer', signed=True, data=params)
+
+    async def create_margin_loan(self, **params):
+        return await self._request_margin_api('post', 'margin/loan', signed=True, data=params)
+
+    async def repay_margin_loan(self, **params):
+        return await self._request_margin_api('post', 'margin/repay', signed=True, data=params)
+
+    async def create_margin_order(self, **params):
+        return await self._request_margin_api('post', 'margin/order', signed=True, data=params)
+
+    async def cancel_margin_order(self, **params):
+        return await self._request_margin_api('delete', 'margin/order', signed=True, data=params)
+
+    async def get_margin_loan_details(self, **params):
+        return await self._request_margin_api('get', 'margin/loan', signed=True, data=params)
+
+    async def get_margin_repay_details(self, **params):
+        return await self._request_margin_api('get', 'margin/repay', signed=True, data=params)
+
+    async def get_margin_order(self, **params):
+        return await self._request_margin_api('get', 'margin/order', signed=True, data=params)
+
+    async def get_open_margin_orders(self, **params):
+        return await self._request_margin_api('get', 'margin/openOrders', signed=True, data=params)
+
+    async def get_all_margin_orders(self, **params):
+        return await self._request_margin_api('get', 'margin/allOrders', signed=True, data=params)
+
+    async def get_margin_trades(self, **params):
+        return await self._request_margin_api('get', 'margin/myTrades', signed=True, data=params)
+
+    async def get_max_margin_loan(self, **params):
+        return await self._request_margin_api('get', 'margin/maxBorrowable', signed=True, data=params)
+
+    async def get_max_margin_transfer(self, **params):
+        return await self._request_margin_api('get', 'margin/maxTransferable', signed=True, data=params)
+
+    async def margin_stream_get_listen_key(self):
+        res = await self._request_margin_api('post', 'userDataStream', signed=True, data={})
+        return res['listenKey']
+
+    async def margin_stream_keepalive(self, listenKey):
+        params = {
+            'listenKey': listenKey
+        }
+        return await self._request_margin_api('put', 'userDataStream', signed=True, data=params)
+
+    async def margin_stream_close(self, listenKey):
+        params = {
+            'listenKey': listenKey
+        }
+        return await self._request_margin_api('delete', 'userDataStream', signed=True, data=params)
+
+    async def get_all_margin_assets(self, **params):
+        return await self._request_margin_api('get', 'margin/allAssets', data=params)
+
+    async def get_all_margin_symbols(self, **params):
+        return await self._request_margin_api('get', 'margin/allPairs', data=params)
+
+    async def get_margin_transfer_history(self, **params):
+        return await self._request_margin_api('get', 'margin/transfer', signed=True, data=params)
+
+    async def get_margin_interest_history(self, **params):
+        return await self._request_margin_api('get', 'margin/interestHistory', signed=True, data=params)
+
+    async def get_force_liquidation_records(self, **params):
+        return await self._request_margin_api('get', 'margin/forceLiquidationRec', signed=True, data=params)
+
+    # Lending Endpoints
+
+    async def get_lending_product_list(self, **params):
+        return await self._request_margin_api('get', 'lending/daily/product/list ', signed=True, data=params)
+
+    async def get_lending_daily_quota_left(self, **params):
+        return await self._request_margin_api('get', 'lending/daily/userLeftQuota', signed=True, data=params)
+
+    async def purchase_lending_product(self, **params):
+        return await self._request_margin_api('post', 'lending/daily/purchase', signed=True, data=params)
+
+    async def get_lending_daily_redemption_quota(self, **params):
+        return await self._request_margin_api('get', 'lending/daily/userRedemptionQuota', signed=True, data=params)
+
+    async def redeem_lending_product(self, **params):
+        return await self._request_margin_api('post', 'lending/daily/redeem', signed=True, data=params)
+
+    async def get_lending_position(self, **params):
+        return await self._request_margin_api('get', 'lending/daily/token/position', signed=True, data=params)
+
+    async def get_lending_account(self, **params):
+        return await self._request_margin_api('get', 'lending/union/account', signed=True, data=params)
+
+    async def get_lending_purchase_history(self, **params):
+        return await self._request_margin_api('get', 'lending/union/purchaseRecord', signed=True, data=params)
+
+    async def get_lending_redemption_history(self, **params):
+        return await self._request_margin_api('get', 'lending/union/redemptionRecord', signed=True, data=params)
+
+    async def get_lending_interest_history(self, **params):
+        return await self._request_margin_api('get', 'lending/union/interestHistory', signed=True, data=params)
+
+    # Sub Accounts
+
+    async def get_sub_account_list(self, **params):
+        return await self._request_withdraw_api('get', 'sub-account/list.html', True, data=params)
+
+    async def get_sub_account_transfer_history(self, **params):
+        return await self._request_withdraw_api('get', 'sub-account/transfer/history.html', True, data=params)
+
+    async def create_sub_account_transfer(self, **params):
+        return await self._request_withdraw_api('post', 'sub-account/transfer.html', True, data=params)
+
+    async def get_sub_account_assets(self, **params):
+        return await self._request_withdraw_api('get', 'sub-account/assets.html', True, data=params)
+
+    # Futures API
+
+    async def futures_ping(self):
+        return await self._request_futures_api('get', 'ping')
+
+    async def futures_time(self):
+        return await self._request_futures_api('get', 'time')
+
+    async def futures_exchange_info(self):
+        return await self._request_futures_api('get', 'exchangeInfo')
+
+    async def futures_order_book(self, **params):
+        return await self._request_futures_api('get', 'depth', data=params)
+
+    async def futures_recent_trades(self, **params):
+        return await self._request_futures_api('get', 'trades', data=params)
+
+    async def futures_historical_trades(self, **params):
+        return await self._request_futures_api('get', 'historicalTrades', data=params)
+
+    async def futures_aggregate_trades(self, **params):
+        return await self._request_futures_api('get', 'aggTrades', data=params)
+
+    async def futures_klines(self, **params):
+        return await self._request_futures_api('get', 'klines', data=params)
+
+    async def futures_mark_price(self, **params):
+        return await self._request_futures_api('get', 'premiumIndex', data=params)
+
+    async def futures_funding_rate(self, **params):
+        return await self._request_futures_api('get', 'fundingRate', data=params)
+
+    async def futures_ticker(self, **params):
+        return await self._request_futures_api('get', 'ticker/24hr', data=params)
+
+    async def futures_symbol_ticker(self, **params):
+        return await self._request_futures_api('get', 'ticker/price', data=params)
+
+    async def futures_orderbook_ticker(self, **params):
+        return await self._request_futures_api('get', 'ticker/bookTicker', data=params)
+
+    async def futures_liquidation_orders(self, **params):
+        return await self._request_futures_api('get', 'allForceOrders', data=params)
+
+    async def futures_open_interest(self, **params):
+        return await self._request_futures_api('get', 'openInterest', data=params)
+
+    async def futures_leverage_bracket(self, **params):
+        return await self._request_futures_api('get', 'leverageBracket', data=params)
+
+    async def transfer_history(self, **params):
+        return await self._request_margin_api('get', 'futures/transfer', True, data=params)
+
+    async def futures_create_order(self, **params):
+        return await self._request_futures_api('post', 'order', True, data=params)
+
+    async def futures_get_order(self, **params):
+        return await self._request_futures_api('get', 'order', True, data=params)
+
+    async def futures_get_open_order(self, **params):
+        return await self._request_futures_api('get', 'openOrder', True, data=params)
+
+    async def futures_get_open_orders(self, **params):
+        return await self._request_futures_api('get', 'openOrders', True, data=params)
+
+    async def futures_get_all_orders(self, **params):
+        return await self._request_futures_api('get', 'allOrders', True, data=params)
+
+    async def futures_cancel_order(self, **params):
+        return await self._request_futures_api('delete', 'order', True, data=params)
+
+    async def futures_cancel_all_open_orders(self, **params):
+        return await self._request_futures_api('delete', 'allOpenOrders', True, data=params)
+
+    async def futures_cancel_orders(self, **params):
+        return await self._request_futures_api('delete', 'batchOrders', True, data=params)
+
+    async def futures_account_balance(self, **params):
+        return await self._request_futures_api('get', 'balance', True, data=params)
+
+    async def futures_account(self, **params):
+        return await self._request_futures_api('get', 'account', True, data=params)
+
+    async def futures_change_leverage(self, **params):
+        return await self._request_futures_api('post', 'leverage', True, data=params)
+
+    async def futures_change_margin_type(self, **params):
+        return await self._request_futures_api('post', 'marginType', True, data=params)
+
+    async def futures_change_position_margin(self, **params):
+        return await self._request_futures_api('post', 'positionMargin', True, data=params)
+
+    async def futures_position_margin_history(self, **params):
+        return await self._request_futures_api('get', 'positionMargin/history', True, data=params)
+
+    async def futures_position_information(self, **params):
+        return await self._request_futures_api('get', 'positionRisk', True, data=params)
+
+    async def futures_account_trades(self, **params):
+        return await self._request_futures_api('get', 'userTrades', True, data=params)
+
+    async def futures_income_history(self, **params):
+        return await self._request_futures_api('get', 'income', True, data=params)
+
+    async def transfer_futures_to_spot(self, **params):
+        params['type'] = 2
+        return await self._request_margin_api('post', 'futures/transfer', signed=True, data=params)
+
+    async def transfer_spot_to_futures(self, **params):
+        params['type'] = 1
+        return await self._request_margin_api('post', 'futures/transfer', signed=True, data=params)
+
+    async def futures_change_position_mode(self, **params):
+        return await self._request_futures_api('post', 'positionSide/dual', True, data=params)
+
+    async def futures_get_position_mode(self, **params):
+        return await self._request_futures_api('get', 'positionSide/dual', True, data=params)
+
+    async def futures_batch_order(self, **params):
+        return await self._request_futures_api('post', 'batchOrders', True, data=params)
+
+    # Traditional Futures API (Manual Update)
+
+    async def tfutures_ping(self):
+        return await self._request_tfutures_api('get', 'ping')
+
+    async def tfutures_time(self):
+        return await self._request_tfutures_api('get', 'time')
+
+    async def tfutures_exchange_info(self):
+        return await self._request_tfutures_api('get', 'exchangeInfo')
+
+    async def tfutures_order_book(self, **params):
+        return await self._request_tfutures_api('get', 'depth', data=params)
+
+    async def tfutures_recent_trades(self, **params):
+        return await self._request_tfutures_api('get', 'trades', data=params)
+
+    async def tfutures_historical_trades(self, **params):
+        return await self._request_tfutures_api('get', 'historicalTrades', data=params)
+
+    async def tfutures_aggregate_trades(self, **params):
+        return await self._request_tfutures_api('get', 'aggTrades', data=params)
+
+    async def tfutures_mark_price(self, **params):
+        return await self._request_tfutures_api('get', 'premiumIndex', data=params)
+
+    async def tfutures_klines(self, **params):
+        return await self._request_tfutures_api('get', 'klines', data=params)
+
+    async def tfutures_continuous_klines(self, **params):
+        return await self._request_tfutures_api('get', 'continuousKlines', data=params)
+
+    async def tfutures_index_price_klines(self, **params):
+        return await self._request_tfutures_api('get', 'indexPriceKlines', data=params)
+
+    async def tfutures_mark_price_klines(self, **params):
+        return await self._request_tfutures_api('get', 'markPriceKlines', data=params)
+
+    async def tfutures_ticker(self, **params):
+        return await self._request_tfutures_api('get', 'ticker/24hr', data=params)
+
+    async def tfutures_symbol_ticker(self, **params):
+        return await self._request_tfutures_api('get', 'ticker/price', data=params)
+
+    async def tfutures_orderbook_ticker(self, **params):
+        return await self._request_tfutures_api('get', 'ticker/bookTicker', data=params)
+
+    async def tfutures_liquidation_orders(self, **params):
+        return await self._request_tfutures_api('get', 'allForceOrders', data=params)
+
+    async def tfutures_open_interest(self, **params):
+        return await self._request_tfutures_api('get', 'openInterest', data=params)
+
+    async def transfer_tfutures_to_spot(self, **params):
+        params['type'] = 4
+        return await self._request_margin_api('post', 'futures/transfer', signed=True, data=params)
+
+    async def transfer_spot_to_tfutures(self, **params):
+        params['type'] = 3
+        return await self._request_margin_api('post', 'futures/transfer', signed=True, data=params)
+
+    async def tfutures_change_position_mode(self, **params):
+        return await self._request_tfutures_api('post', 'positionSide/dual', True, data=params)
+
+    async def tfutures_get_position_mode(self, **params):
+        return await self._request_tfutures_api('get', 'positionSide/dual', True, data=params)
+
+    async def tfutures_create_order(self, **params):
+        return await self._request_tfutures_api('post', 'order', True, data=params)
+
+    async def tfutures_batch_order(self, **params):
+        return await self._request_tfutures_api('post', 'batchOrders', True, data=params)
+
+    async def tfutures_get_order(self, **params):
+        return await self._request_tfutures_api('get', 'order', True, data=params)
+
+    async def tfutures_cancel_order(self, **params):
+        return await self._request_tfutures_api('delete', 'order', True, data=params)
+
+    async def tfutures_cancel_all_open_orders(self, **params):
+        return await self._request_tfutures_api('delete', 'allOpenOrders', True, data=params)
+
+    async def tfutures_cancel_orders(self, **params):
+        return await self._request_tfutures_api('delete', 'batchOrders', True, data=params)
+
+    async def tfutures_auto_cancel_all_open_orders(self, **params):
+        return await self._request_tfutures_api('post', 'countdownCancelAll', True, data=params)
+
+    async def tfutures_get_open_order(self, **params):
+        return await self._request_tfutures_api('get', 'openOrder', True, data=params)
+
+    async def tfutures_get_open_orders(self, **params):
+        return await self._request_tfutures_api('get', 'openOrders', True, data=params)
+
+    async def tfutures_get_all_orders(self, **params):
+        return await self._request_tfutures_api('get', 'allOrders', True, data=params)
+
+    async def tfutures_account_balance(self, **params):
+        return await self._request_tfutures_api('get', 'balance', True, data=params)
+
+    async def tfutures_account(self, **params):
+        return await self._request_tfutures_api('get', 'account', True, data=params)
+
+    async def tfutures_change_leverage(self, **params):
+        return await self._request_tfutures_api('post', 'leverage', True, data=params)
+
+    async def tfutures_change_margin_type(self, **params):
+        return await self._request_tfutures_api('post', 'marginType', True, data=params)
+
+    async def tfutures_change_position_margin(self, **params):
+        return await self._request_tfutures_api('post', 'positionMargin', True, data=params)
+
+    async def tfutures_position_margin_history(self, **params):
+        return await self._request_tfutures_api('get', 'positionMargin/history', True, data=params)
+
+    async def tfutures_position_information(self, **params):
+        return await self._request_tfutures_api('get', 'positionRisk', True, data=params)
+
+    async def tfutures_account_trades(self, **params):
+        return await self._request_tfutures_api('get', 'userTrades', True, data=params)
+
+    async def tfutures_income_history(self, **params):
+        return await self._request_tfutures_api('get', 'income', True, data=params)
+
+    async def tfutures_leverage_bracket(self, **params):
+        return await self._request_tfutures_api('get', 'leverageBracket', data=params)
