@@ -1,6 +1,8 @@
 import asyncio
 import json
 import logging
+import time
+from functools import partial
 from random import random
 import websockets as ws
 
@@ -146,7 +148,7 @@ class BinanceSocketManager:
 
         return path
 
-    async def _start_futures_socket(self, path, coro, prefix='stream?streams='):
+    async def _start_futures_socket(self, path, coro, prefix='ws/'):
         if path in self._conns:
             return False
 
@@ -644,43 +646,30 @@ class BinanceSocketManager:
         # Get the user listen key
         user_listen_key = await self._client.stream_get_listen_key()
         # and start the socket with this specific key
-        conn_key = await self._start_user_socket(user_listen_key, coro)
+        conn_key = await self._start_account_socket('user', user_listen_key, coro)
         return conn_key
 
-    async def _start_user_socket(self, user_listen_key, callback):
-        # With this function we can start a user socket with a specific key
-        if self._user_listen_key:
-            # cleanup any sockets with this key
-            for conn_key in self._conns:
-                if len(conn_key) >= 60 and conn_key[:60] == self._user_listen_key:
-                    await self.stop_socket(conn_key)
-                    break
-        self._user_listen_key = user_listen_key
-        self._user_callback = callback
-        conn_key = await self._start_socket(self._user_listen_key, callback)
-        if conn_key:
-            # start timer to keep socket alive
-            self._start_user_timer()
+    def _start_socket_timer(self, socket_type):
+        keepalive_func = partial(self._keepalive_account_socket, socket_type)
+        self._timers[socket_type] = self._loop.call_later(self._user_timeout, keepalive_func)
 
-        return conn_key
-
-    def _start_user_timer(self):
-        self._user_timer = self._loop.call_later(self._user_timeout, self._keepalive_user_socket)
-
-    def _keepalive_user_socket(self):
-
+    def _keepalive_account_socket(self, socket_type):
         async def _run():
-            user_listen_key = await self._client.stream_get_listen_key()
-            self._log.debug("new key {} old key {}".format(user_listen_key, self._user_listen_key))
-            # check if they key changed and reconnect
-            if user_listen_key != self._user_listen_key:
-                # Start a new socket with the key received
-                # `_start_user_socket` automatically cleanup open sockets
-                # and starts timer to keep socket alive
-                await self._start_user_socket(user_listen_key, self._user_callback)
+            if socket_type == 'user':
+                listen_key = await self._client.stream_get_listen_key()
+                callback = self._account_callbacks[socket_type]
             else:
-                # Restart timer only if the user listen key is not changed
-                self._start_user_timer()
+                listen_key = await self._client.margin_stream_get_listen_key()
+                callback = self._account_callbacks[socket_type]
+            self._log.debug("new key {} old key {}".format(listen_key, self._listen_keys[socket_type]))
+            if listen_key != self._listen_keys[socket_type]:
+                # Start a new socket with the key received
+                # `_start_account_socket` automatically cleanup open sockets
+                # and starts timer to keep socket alive
+                await self._start_account_socket(socket_type, listen_key, callback)
+            else:
+                # Restart timer only if the user listen key remains the same
+                self._start_socket_timer()
 
         # this allows execution to keep going
         asyncio.ensure_future(_run())
@@ -701,19 +690,64 @@ class BinanceSocketManager:
         del (self._conns[conn_key])
 
         # check if we have a user stream socket
-        if len(conn_key) >= 60 and conn_key[:60] == self._user_listen_key:
-            await self._stop_user_socket()
+        if len(conn_key) >= 60 and conn_key[:60] == self._listen_keys['user']:
+            await self._stop_account_socket('user')
 
-    async def _stop_user_socket(self):
-        if not self._user_listen_key:
+        # or a margin stream socket
+        if len(conn_key) >= 60 and conn_key[:60] == self._listen_keys['margin']:
+            await self._stop_account_socket('margin')
+
+    async def _stop_account_socket(self, socket_type):
+        if not self._listen_keys[socket_type]:
             return
         # stop the timer
-        if self._user_timer:
-            self._user_timer.cancel()
-        self._user_timer = None
+        if self._timers[socket_type]:
+            self._timers[socket_type].cancel()
+            self._timers[socket_type] = None
         # close the stream
-        await self._client.stream_close(listenKey=self._user_listen_key)
-        self._user_listen_key = None
+        if socket_type == 'user':
+            await self._client.stream_close(listenKey=self._listen_keys[socket_type])
+        else:
+            await self._client.margin_stream_close(listenKey=self._listen_keys[socket_type])
+        self._listen_keys[socket_type] = None
+
+    async def start_margin_socket(self, callback):
+        """Start a websocket for margin data
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md
+        :param callback: callback function to handle messages
+        :type callback: function
+        :returns: connection key string if successful, False otherwise
+        Message Format - see Binance API docs for all types
+        """
+        # Get the user margin listen key
+        margin_listen_key = self._client.margin_stream_get_listen_key()
+        # and start the socket with this specific key
+        conn_key = self._start_account_socket('margin', margin_listen_key, callback)
+        return conn_key
+
+    async def _start_account_socket(self, socket_type, listen_key, callback):
+        """Starts one of user or margin socket"""
+        await self._check_account_socket_open(listen_key)
+        self._listen_keys[socket_type] = listen_key
+        self._account_callbacks[socket_type] = callback
+        if socket_type == 'user':
+            conn_key = await self._start_socket(listen_key, callback)
+        else:
+            conn_key = await self._start_futures_socket(listen_key, callback)
+        if conn_key:
+            # start timer to keep socket alive
+            self._start_socket_timer(socket_type)
+        return conn_key
+
+    async def _check_account_socket_open(self, listen_key):
+        # With this function we can start a user socket with a specific key
+        if not listen_key:
+            return
+        for conn_key in self._conns:
+            # cleanup any sockets with this key
+            if len(conn_key) >= 60 and conn_key[:60] == listen_key:
+                await self.stop_socket(conn_key)
+                break
 
     async def close(self):
         """Close all connections
