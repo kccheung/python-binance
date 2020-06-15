@@ -3523,6 +3523,14 @@ class Client(BaseClient):
         res = self._request_margin_api('post', 'userDataStream', signed=True, data={})
         return res['listenKey']
 
+    def future_stream_get_listen_key(self):
+        res = self._request_futures_api('post', 'listenKey', signed=True, data={})
+        return res['listenKey']
+
+    def tfuture_stream_get_listen_key(self):
+        res = self._request_tfutures_api('post', 'listenKey', signed=True, data={})
+        return res['listenKey']
+
     def margin_stream_keepalive(self, listenKey):
         """PING a margin data stream to prevent a time out.
 
@@ -3540,10 +3548,16 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
 
         """
-        params = {
-            'listenKey': listenKey
-        }
+        params = {'listenKey': listenKey}
         return self._request_margin_api('put', 'userDataStream', signed=True, data=params)
+
+    def future_stream_keepalive(self, listenKey):
+        params = {'listenKey': listenKey}
+        return self._request_futures_api('put', 'listenKey', signed=True, data=params)
+
+    def tfuture_stream_keepalive(self, listenKey):
+        params = {'listenKey': listenKey}
+        return self._request_tfutures_api('put', 'listenKey', signed=True, data=params)
 
     def margin_stream_close(self, listenKey):
         """Close out a margin data stream.
@@ -3562,10 +3576,16 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
 
         """
-        params = {
-            'listenKey': listenKey
-        }
+        params = {'listenKey': listenKey}
         return self._request_margin_api('delete', 'userDataStream', signed=True, data=params)
+
+    def future_stream_close(self, listenKey):
+        params = {'listenKey': listenKey}
+        return self._request_futures_api('delete', 'listenKey', signed=True, data=params)
+
+    def tfuture_stream_close(self, listenKey):
+        params = {'listenKey': listenKey}
+        return self._request_tfutures_api('delete', 'listenKey', signed=True, data=params)
 
     def get_all_margin_assets(self, **params):
         """Query all margin assets
@@ -5352,17 +5372,37 @@ class AsyncClient(BaseClient):
         res = await self._request_margin_api('post', 'userDataStream', signed=True, data={})
         return res['listenKey']
 
+    async def future_stream_get_listen_key(self):
+        res = await self._request_futures_api('post', 'listenKey', signed=True, data={})
+        return res['listenKey']
+
+    async def tfuture_stream_get_listen_key(self):
+        res = await self._request_tfutures_api('post', 'listenKey', signed=True, data={})
+        return res['listenKey']
+
     async def margin_stream_keepalive(self, listenKey):
-        params = {
-            'listenKey': listenKey
-        }
+        params = {'listenKey': listenKey}
         return await self._request_margin_api('put', 'userDataStream', signed=True, data=params)
 
+    async def future_stream_keepalive(self, listenKey):
+        params = {'listenKey': listenKey}
+        return await self._request_futures_api('put', 'listenKey', signed=True, data=params)
+
+    async def tfuture_stream_keepalive(self, listenKey):
+        params = {'listenKey': listenKey}
+        return await self._request_tfutures_api('put', 'listenKey', signed=True, data=params)
+
     async def margin_stream_close(self, listenKey):
-        params = {
-            'listenKey': listenKey
-        }
+        params = {'listenKey': listenKey}
         return await self._request_margin_api('delete', 'userDataStream', signed=True, data=params)
+
+    async def future_stream_close(self, listenKey):
+        params = {'listenKey': listenKey}
+        return await self._request_futures_api('delete', 'listenKey', signed=True, data=params)
+
+    async def tfuture_stream_close(self, listenKey):
+        params = {'listenKey': listenKey}
+        return await self._request_tfutures_api('delete', 'listenKey', signed=True, data=params)
 
     async def get_all_margin_assets(self, **params):
         return await self._request_margin_api('get', 'margin/allAssets', data=params)
