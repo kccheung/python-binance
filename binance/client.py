@@ -2442,6 +2442,42 @@ class Client(BaseClient):
         """
         return self._request_margin_api('post', 'asset/assetDividend', True, data=params)
 
+    def get_margin_account_borrow(self, **params):
+        """Cross Margin Account Transfer (MARGIN)
+
+        https://binance-docs.github.io/apidocs/spot/en/#margin-account-borrow-margin
+
+        :param asset: required
+        :type asset: str
+        :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE"
+        :type isIsolated: str
+        :param symbol: optional	isolated symbol
+        :type symbol: str
+        :param amount: required
+        :type amount: float
+        :param recvWindow: optional, The value cannot be greater than 60000
+        :type recvWindow: long
+        :param timestamp: required
+        :type timestamp: long
+
+        .. code:: python
+
+            result = client.get_margin_account_borrow(asset='BTC', amount=0.5)
+
+        :returns: API response
+
+        .. code-block:: python
+
+            {
+                // transaction id
+                "tranId": 100000001
+            }
+
+        :raises: BinanceRequestException, BinanceAPIException
+
+        """
+        return self._request_margin_api('post', 'loan', True, data=params)
+
     def get_trade_fee(self, **params):
         """Get trade fee.
 
@@ -5242,6 +5278,11 @@ class AsyncClient(BaseClient):
         return await self._request_margin_api('post', 'asset/assetDividend', True, data=params)
 
     get_asset_dividend_history.__doc__ = Client.get_asset_dividend_history.__doc__
+
+    async def get_margin_account_borrow(self, **params):
+        return await self._request_margin_api('post', 'loan', True, data=params)
+
+    get_margin_account_borrow.__doc__ = Client.get_margin_account_borrow.__doc__
 
     async def get_trade_fee(self, **params):
         res = await self._request_withdraw_api('get', 'tradeFee.html', True, data=params)
