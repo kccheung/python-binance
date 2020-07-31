@@ -2957,6 +2957,10 @@ class Client(BaseClient):
 
         :param asset: name of the asset
         :type asset: str
+        :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE"
+        :type isIsolated: str
+        :param symbol: optional, isolated symbol
+        :type symbol: str
         :param amount: amount to transfer
         :type amount: str
         :param recvWindow: the number of milliseconds the request is valid for
@@ -2986,6 +2990,10 @@ class Client(BaseClient):
 
         :param asset: name of the asset
         :type asset: str
+        :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE"
+        :type isIsolated: str
+        :param symbol: optional, isolated symbol
+        :type symbol: str
         :param amount: amount to transfer
         :type amount: str
         :param recvWindow: the number of milliseconds the request is valid for
@@ -3015,6 +3023,8 @@ class Client(BaseClient):
 
         :param symbol: required
         :type symbol: str
+        :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE"
+        :type isIsolated: str
         :param side: required
         :type side: str
         :param type: required
@@ -3047,6 +3057,7 @@ class Client(BaseClient):
                 "symbol": "BTCUSDT",
                 "orderId": 28,
                 "clientOrderId": "6gCrw2kRUAF9CvJDGP16IP",
+                "isIsolated": true,
                 "transactTime": 1507725176595
             }
 
@@ -3066,6 +3077,7 @@ class Client(BaseClient):
                 "status": "FILLED",
                 "timeInForce": "GTC",
                 "type": "MARKET",
+                "isIsolated": true,
                 "side": "SELL"
             }
 
@@ -3086,6 +3098,9 @@ class Client(BaseClient):
                 "timeInForce": "GTC",
                 "type": "MARKET",
                 "side": "SELL",
+                "marginBuyBorrowAmount": 5,       // will not returen if no margin trade happens
+                "marginBuyBorrowAsset": "BTC",    // will not returen if no margin trade happens
+                "isIsolated": true,       // if isolated margin
                 "fills": [
                     {
                         "price": "4000.00000000",
@@ -3136,6 +3151,8 @@ class Client(BaseClient):
 
         :param symbol: required
         :type symbol: str
+        :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE"
+        :type isIsolated: str
         :param orderId:
         :type orderId: str
         :param origClientOrderId:
@@ -3149,6 +3166,7 @@ class Client(BaseClient):
 
             {
                 "symbol": "LTCBTC",
+                "isIsolated": true,
                 "orderId": 28,
                 "origClientOrderId": "myOrder1",
                 "clientOrderId": "cancelMyOrder1",
@@ -3269,6 +3287,8 @@ class Client(BaseClient):
 
         :param symbol: required
         :type symbol: str
+        :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE"
+        :type isIsolated: str
         :param orderId:
         :type orderId: str
         :param origClientOrderId:
@@ -3291,6 +3311,7 @@ class Client(BaseClient):
                 "status": "NEW",
                 "stopPrice": "0.00000000",
                 "symbol": "BNBBTC",
+                "isIsolated": true,
                 "time": 1562133008725,
                 "timeInForce": "GTC",
                 "type": "LIMIT",
@@ -3314,8 +3335,12 @@ class Client(BaseClient):
 
         :param symbol: optional
         :type symbol: str
+        :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE", if isIsolated = "TRUE", symbol must be sent.
+        :type isIsolated: str
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
 
         :returns: API response
 
@@ -3333,6 +3358,7 @@ class Client(BaseClient):
                     "status": "NEW",
                     "stopPrice": "0.00000000",
                     "symbol": "BNBBTC",
+                    "isIsolated": true,
                     "time": 1562040170089,
                     "timeInForce": "GTC",
                     "type": "LIMIT",
