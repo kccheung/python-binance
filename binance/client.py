@@ -3979,7 +3979,7 @@ class Client(BaseClient):
 
     def get_isolated_margin_transfer_history(self, **params):
         """Get isolated margin transfer history
-        https://binance-docs.github.io/apidocs/spot/en/#create-isolated-margin-account-margin
+        https://binance-docs.github.io/apidocs/spot/en/#get-isolated-margin-transfer-history-user_data
         :param asset: optional, asset, such as BTC
         :type asset: str
         :param symbol: required
@@ -4092,6 +4092,68 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
         """
         return self._request_margin_api('get', 'margin/isolated/account', signed=True, data=params)
+
+    def get_isolated_margin_symbol(self, **params):
+        """Query isolated margin symbol (USER_DATA)
+        https://binance-docs.github.io/apidocs/spot/en/#query-isolated-margin-symbol-user_data
+
+        :param symbol: required
+        :type symbol: str
+        :param recvWindow: optional, the number of milliseconds the request is valid for, no more than 60000
+        :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
+
+        :returns: API response
+
+        .. code-block:: python
+            {
+                "symbol": "BTCUSDT",
+                "base": "BTC",
+                "quote": "USDT",
+                "isMarginTrade": true,
+                "isBuyAllowed": true,
+                "isSellAllowed": true
+            }
+
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._request_margin_api('get', 'margin/isolated/pair', signed=True, data=params)
+
+    def get_all_isolated_margin_symbol(self, **params):
+        """Query all isolated margin symbol (USER_DATA)
+        https://binance-docs.github.io/apidocs/spot/en/#get-all-isolated-margin-symbol-user_data
+
+        :param recvWindow: optional, the number of milliseconds the request is valid for, no more than 60000
+        :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
+
+        :returns: API response
+
+        .. code-block:: python
+            [
+                {
+                    "base": "BNB",
+                    "isBuyAllowed": true,
+                    "isMarginTrade": true,
+                    "isSellAllowed": true,
+                    "quote": "BTC",
+                    "symbol": "BNBBTC"
+                },
+                {
+                    "base": "TRX",
+                    "isBuyAllowed": true,
+                    "isMarginTrade": true,
+                    "isSellAllowed": true,
+                    "quote": "BTC",
+                    "symbol": "TRXBTC"
+                }
+            ]
+
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._request_margin_api('get', 'margin/isolated/allPairs', signed=True, data=params)
 
     # Lending Endpoints
 
@@ -5668,8 +5730,17 @@ class AsyncClient(BaseClient):
     async def transfer_isolated_margin_account(self, **params):
         return await self._request_margin_api('post', 'margin/isolated/transfer', signed=True, data=params)
 
+    async def get_isolated_margin_transfer_history(self, **params):
+        return await self._request_margin_api('get', 'margin/isolated/transfer', signed=True, data=params)
+
     async def get_isolated_margin_account_info(self, **params):
-        return await self._request_margin_api('post', 'margin/isolated/account', signed=True, data=params)
+        return await self._request_margin_api('get', 'margin/isolated/account', signed=True, data=params)
+
+    async def get_isolated_margin_symbol(self, **params):
+        return await self._request_margin_api('get', 'margin/isolated/pair', signed=True, data=params)
+
+    async def get_all_isolated_margin_symbol(self, **params):
+        return await self._request_margin_api('get', 'margin/isolated/allPairs', signed=True, data=params)
 
     # Lending Endpoints
 
