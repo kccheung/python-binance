@@ -3923,6 +3923,30 @@ class Client(BaseClient):
         """
         return self._request_margin_api('get', 'margin/forceLiquidationRec', signed=True, data=params)
 
+    def create_isolated_margin_account(self, **params):
+        """Create isolated margin account
+        https://binance-docs.github.io/apidocs/spot/en/#create-isolated-margin-account-margin
+        :param base: required, base asset of symbol
+        :type base: str
+        :param quote: required, quote asset of symbol
+        :type quote: str
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
+
+        :returns: API response
+
+        .. code-block:: python
+            {
+                "success": true,
+                "symbol": "BTCUSDT"
+            }
+
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._request_margin_api('post', 'margin/isolated/create', signed=True, data=params)
+
     # Lending Endpoints
 
     def get_lending_product_list(self, **params):
@@ -5491,6 +5515,9 @@ class AsyncClient(BaseClient):
 
     async def get_force_liquidation_records(self, **params):
         return await self._request_margin_api('get', 'margin/forceLiquidationRec', signed=True, data=params)
+
+    async def create_isolated_margin_account(self, **params):
+        return await self._request_margin_api('post', 'margin/isolated/create', signed=True, data=params)
 
     # Lending Endpoints
 
