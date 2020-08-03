@@ -2965,6 +2965,8 @@ class Client(BaseClient):
         :type amount: str
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
 
         .. code:: python
 
@@ -2998,6 +3000,8 @@ class Client(BaseClient):
         :type amount: str
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
 
         .. code:: python
 
@@ -3195,6 +3199,8 @@ class Client(BaseClient):
 
         :param asset: required
         :type asset: str
+        :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE", if isIsolated = "TRUE", symbol must be sent.
+        :type isIsolated: str
         :param txId: the tranId in of the created loan
         :type txId: str
         :param startTime:
@@ -3207,17 +3213,19 @@ class Client(BaseClient):
         :type size: int
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
 
         :returns: API response
 
             {
                 "rows": [
                     {
+                        "isolatedSymbol": "BNBUSDT", // isolated symbol, return "" for crossed margin
                         "asset": "BNB",
                         "principal": "0.84624403",
                         "timestamp": 1555056425000,
-                        //one of PENDING (pending to execution), CONFIRMED (successfully loaned), FAILED (execution failed, nothing happened to your account);
-                        "status": "CONFIRMED"
+                        "status": "CONFIRMED"  // one of PENDING (pending to execution), CONFIRMED (successfully loaned), FAILED (execution failed, nothing happened to your account);
                     }
                 ],
                 "total": 1
@@ -3237,6 +3245,8 @@ class Client(BaseClient):
 
         :param asset: required
         :type asset: str
+        :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE"
+        :type isIsolated: str
         :param txId: the tranId in of the created loan
         :type txId: str
         :param startTime:
@@ -3249,21 +3259,20 @@ class Client(BaseClient):
         :type size: int
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
 
         :returns: API response
 
             {
                 "rows": [
                     {
-                        //Total amount repaid
-                        "amount": "14.00000000",
+                        "isolatedSymbol": "BNBUSDT",  // isolated symbol, return "" for crossed margin
+                        "amount": "14.00000000",  // Total amount repaid
                         "asset": "BNB",
-                        //Interest repaid
-                        "interest": "0.01866667",
-                        //Principal repaid
-                        "principal": "13.98133333",
-                        //one of PENDING (pending to execution), CONFIRMED (successfully loaned), FAILED (execution failed, nothing happened to your account);
-                        "status": "CONFIRMED",
+                        "interest": "0.01866667",  // Interest repaid
+                        "principal": "13.98133333",  // Principal repaid
+                        "status": "CONFIRMED",  // one of PENDING (pending to execution), CONFIRMED (successfully loaned), FAILED (execution failed, nothing happened to your account);
                         "timestamp": 1563438204000,
                         "txId": 2970933056
                     }
@@ -3382,6 +3391,8 @@ class Client(BaseClient):
 
         :param symbol: required
         :type symbol: str
+        :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE", if isIsolated = "TRUE", symbol must be sent.
+        :type isIsolated: str
         :param orderId: optional
         :type orderId: str
         :param startTime: optional
@@ -3392,36 +3403,70 @@ class Client(BaseClient):
         :type limit: int
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
 
         :returns: API response
 
             [
                 {
-                    "id": 43123876,
-                    "price": "0.00395740",
-                    "qty": "4.06000000",
-                    "quoteQty": "0.01606704",
+                    "clientOrderId": "D2KDy4DIeS56PvkM13f8cP",
+                    "cummulativeQuoteQty": "0.00000000",
+                    "executedQty": "0.00000000",
+                    "icebergQty": "0.00000000",
+                    "isWorking": false,
+                    "orderId": 41295,
+                    "origQty": "5.31000000",
+                    "price": "0.22500000",
+                    "side": "SELL",
+                    "status": "CANCELED",
+                    "stopPrice": "0.18000000",
                     "symbol": "BNBBTC",
-                    "time": 1556089977693
+                    "isIsolated": false,
+                    "time": 1565769338806,
+                    "timeInForce": "GTC",
+                    "type": "TAKE_PROFIT_LIMIT",
+                    "updateTime": 1565769342148
                 },
                 {
-                    "id": 43123877,
-                    "price": "0.00395740",
-                    "qty": "0.77000000",
-                    "quoteQty": "0.00304719",
+                    "clientOrderId": "gXYtqhcEAs2Rn9SUD9nRKx",
+                    "cummulativeQuoteQty": "0.00000000",
+                    "executedQty": "0.00000000",
+                    "icebergQty": "1.00000000",
+                    "isWorking": true,
+                    "orderId": 41296,
+                    "origQty": "6.65000000",
+                    "price": "0.18000000",
+                    "side": "SELL",
+                    "status": "CANCELED",
+                    "stopPrice": "0.00000000",
                     "symbol": "BNBBTC",
-                    "time": 1556089977693
+                    "isIsolated": false,
+                    "time": 1565769348687,
+                    "timeInForce": "GTC",
+                    "type": "LIMIT",
+                    "updateTime": 1565769352226
                 },
                 {
-                    "id": 43253549,
-                    "price": "0.00428930",
-                    "qty": "23.30000000",
-                    "quoteQty": "0.09994069",
+                    "clientOrderId": "duDq1BqohhcMmdMs9FSuDy",
+                    "cummulativeQuoteQty": "0.39450000",
+                    "executedQty": "2.63000000",
+                    "icebergQty": "0.00000000",
+                    "isWorking": true,
+                    "orderId": 41297,
+                    "origQty": "2.63000000",
+                    "price": "0.00000000",
+                    "side": "SELL",
+                    "status": "FILLED",
+                    "stopPrice": "0.00000000",
                     "symbol": "BNBBTC",
-                    "time": 1556163963504
+                    "isIsolated": false,
+                    "time": 1565769358139,
+                    "timeInForce": "GTC",
+                    "type": "MARKET",
+                    "updateTime": 1565769358139
                 }
             ]
-
 
         :raises: BinanceRequestException, BinanceAPIException
 
@@ -3437,6 +3482,8 @@ class Client(BaseClient):
 
         :param symbol: required
         :type symbol: str
+        :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE", if isIsolated = "TRUE", symbol must be sent.
+        :type isIsolated: str
         :param fromId: optional
         :type fromId: str
         :param startTime: optional
@@ -3447,6 +3494,8 @@ class Client(BaseClient):
         :type limit: int
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
 
         :returns: API response
 
@@ -3462,6 +3511,7 @@ class Client(BaseClient):
                     "price": "0.02000000",
                     "qty": "3.00000000",
                     "symbol": "BNBBTC",
+                    "isIsolated": false,
                     "time": 1561973357171
                 }, {
                     "commission": "0.00002950",
@@ -3474,10 +3524,10 @@ class Client(BaseClient):
                     "price": "0.00590000",
                     "qty": "5.00000000",
                     "symbol": "BNBBTC",
+                    "isIsolated": false,
                     "time": 1561964645345
                 }
             ]
-
 
         :raises: BinanceRequestException, BinanceAPIException
 
@@ -3780,6 +3830,8 @@ class Client(BaseClient):
         https://github.com/binance-exchange/binance-official-api-docs/blob/master/margin-api.md#get-interest-history-user_data
         :param asset: name of the asset
         :type asset: str
+        :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE", if isIsolated = "TRUE", symbol must be sent.
+        :type isIsolated: str
         :param startTime
         :type startTime: long
         :param endTime
@@ -3790,52 +3842,33 @@ class Client(BaseClient):
         :type size: long
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
+
         :returns: API response
+
         .. code-block:: python
             {
-              "rows": [
-                  {
-                      "asset": "BNB",
-                      "interest": "0.02414667",
-                      "interestAccuredTime": 1566813600,
-                      "interestRate": "0.01600000",
-                      "principal": "36.22000000",
-                      "type": "ON_BORROW"
-                  },
-                  {
-                      "asset": "BNB",
-                      "interest": "0.02019334",
-                      "interestAccuredTime": 1566813600,
-                      "interestRate": "0.01600000",
-                      "principal": "30.29000000",
-                      "type": "ON_BORROW"
-                  },
-                  {
-                      "asset": "BNB",
-                      "interest": "0.02098667",
-                      "interestAccuredTime": 1566813600,
-                      "interestRate": "0.01600000",
-                      "principal": "31.48000000",
-                      "type": "ON_BORROW"
-                  },
-                  {
-                      "asset": "BNB",
-                      "interest": "0.02483334",
-                      "interestAccuredTime": 1566806400,
-                      "interestRate": "0.01600000",
-                      "principal": "37.25000000",
-                      "type": "ON_BORROW"
-                  },
-                  {
-                      "asset": "BNB",
-                      "interest": "0.02165334",
-                      "interestAccuredTime": 1566806400,
-                      "interestRate": "0.01600000",
-                      "principal": "32.48000000",
-                      "type": "ON_BORROW"
-                  }
-              ],
-              "total": 5
+                "rows": [
+                    {
+                        "isolatedSymbol": "BNBUSDT", // isolated symbol, return "" for crossed margin
+                        "asset": "BNB",
+                        "interest": "0.02414667",
+                        "interestAccuredTime": 1566813600,
+                        "interestRate": "0.01600000",
+                        "principal": "36.22000000",
+                        "type": "ON_BORROW"
+                    },
+                    {
+                        "asset": "BNB",
+                        "interest": "0.02019334",
+                        "interestAccuredTime": 1566813600,
+                        "interestRate": "0.01600000",
+                        "principal": "30.29000000",
+                        "type": "ON_BORROW"
+                    }
+                ],
+                "total": 2
             }
         :raises: BinanceRequestException, BinanceAPIException
         """
