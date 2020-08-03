@@ -3541,8 +3541,12 @@ class Client(BaseClient):
 
         :param asset: required
         :type asset: str
-        :param recvWindow: the number of milliseconds the request is valid for
+        :param isolatedSymbol: optional, if isolatedSymbol is not sent, crossed margin data will be sent.
+        :type isolatedSymbol: str
+        :param recvWindow: the number of milliseconds the request is valid for, the value cannot be greater than 60000
         :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
 
         :returns: API response
 
@@ -3562,8 +3566,12 @@ class Client(BaseClient):
 
         :param asset: required
         :type asset: str
-        :param recvWindow: the number of milliseconds the request is valid for
+        :param isolatedSymbol: optional, if isolatedSymbol is not sent, crossed margin data will be sent.
+        :type isolatedSymbol: str
+        :param recvWindow: the number of milliseconds the request is valid for, the value cannot be greater than 60000
         :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
 
         :returns: API response
 
@@ -3875,18 +3883,23 @@ class Client(BaseClient):
         return self._request_margin_api('get', 'margin/interestHistory', signed=True, data=params)
 
     def get_force_liquidation_records(self, **params):
-        """Get force liquidation records
+        """Get force liquidation records, response in descending order
         https://github.com/binance-exchange/binance-official-api-docs/blob/master/margin-api.md#get-force-liquidation-record-user_data
         :param startTime
         :type startTime: long
         :param endTime
         :type endTime: long
+        :param isolatedSymbol: optional, if isolatedSymbol is not sent, crossed margin data will be sent.
+        :type isolatedSymbol: str
         :param current
         :type current: long
         :param size
         :type size: long
         :param recvWindow: the number of milliseconds the request is valid for
         :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
+
         :returns: API response
         .. code-block:: python
             {
@@ -3900,6 +3913,7 @@ class Client(BaseClient):
                       "side": "SELL",
                       "symbol": "BNBBTC",
                       "timeInForce": "GTC",
+                      "isIsolated": true,
                       "updatedTime": 1558941374745
                   }
               ],
