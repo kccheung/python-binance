@@ -3947,6 +3947,152 @@ class Client(BaseClient):
         """
         return self._request_margin_api('post', 'margin/isolated/create', signed=True, data=params)
 
+    def transfer_isolated_margin_account(self, **params):
+        """Transfer isolated margin
+        https://binance-docs.github.io/apidocs/spot/en/#create-isolated-margin-account-margin
+        :param asset: required, asset, such as BTC
+        :type asset: str
+        :param symbol: required
+        :type symbol: str
+        :param transFrom: required, "SPOT", "ISOLATED_MARGIN"
+        :type transFrom: str
+        :param transTo: required, "SPOT", "ISOLATED_MARGIN"
+        :type transTo: str
+        :param amount: required
+        :type amount: decimal
+        :param recvWindow: the number of milliseconds the request is valid for, no more than 60000
+        :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
+
+        :returns: API response
+
+        .. code-block:: python
+            {
+                // transaction id
+                "tranId": 100000001
+            }
+
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._request_margin_api('post', 'margin/isolated/transfer', signed=True, data=params)
+
+    def get_isolated_margin_transfer_history(self, **params):
+        """Get isolated margin transfer history
+        https://binance-docs.github.io/apidocs/spot/en/#create-isolated-margin-account-margin
+        :param asset: optional, asset, such as BTC
+        :type asset: str
+        :param symbol: required
+        :type symbol: str
+        :param transFrom: optional, "SPOT", "ISOLATED_MARGIN"
+        :type transFrom: str
+        :param transTo: optional, "SPOT", "ISOLATED_MARGIN"
+        :type transTo: str
+        :param startTime: optional
+        :type startTime: LONG
+        :param endTime: optional
+        :type endTime: LONG
+        :param current: optional, current page, default 1
+        :type current: LONG
+        :param size: optional, default 10, max 100
+        :type size: LONG
+        :param recvWindow: the number of milliseconds the request is valid for, no more than 60000
+        :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
+
+        :returns: API response
+
+        .. code-block:: python
+            {
+                "rows": [
+                    {
+                        "amount": "0.10000000",
+                        "asset": "BNB",
+                        "status": "CONFIRMED",
+                        "timestamp": 1566898617000,
+                        "txId": 5240372201,
+                        "transFrom": "SPOT",
+                        "transTo": "ISOLATED_MARGIN"
+                    },
+                    {
+                        "amount": "5.00000000",
+                        "asset": "USDT",
+                        "status": "CONFIRMED",
+                        "timestamp": 1566888436123,
+                        "txId": 5239810406,
+                        "transFrom": "ISOLATED_MARGIN",
+                        "transTo": "SPOT"
+                    }
+                ],
+              "total": 2
+            }
+
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._request_margin_api('get', 'margin/isolated/transfer', signed=True, data=params)
+
+    def get_isolated_margin_account_info(self, **params):
+        """Query isolated margin account info (USER_DATA)
+        https://binance-docs.github.io/apidocs/spot/en/#query-isolated-margin-account-info-user_data
+
+        :param recvWindow: optional, the number of milliseconds the request is valid for, no more than 60000
+        :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
+
+        :returns: API response
+
+        .. code-block:: python
+            {
+                [
+                  {
+                    "baseAsset":
+                    {
+                      "asset": "BTC",
+                      "borrowEnabled": true,
+                      "borrowed": "0.00000000",
+                      "free": "0.00000000",
+                      "interest": "0.00000000",
+                      "locked": "0.00000000",
+                      "netAsset": "0.00000000",
+                      "netAssetOfBtc": "0.00000000",
+                      "repayEnabled": true,
+                      "totalAsset": "0.00000000"
+                    },
+                    "quoteAsset":
+                    {
+                      "asset": "USDT",
+                      "borrowEnabled": true,
+                      "borrowed": "0.00000000",
+                      "free": "0.00000000",
+                      "interest": "0.00000000",
+                      "locked": "0.00000000",
+                      "netAsset": "0.00000000",
+                      "netAssetOfBtc": "0.00000000",
+                      "repayEnabled": true,
+                      "totalAsset": "0.00000000"
+                    },
+                    "symbol": "BTCUSDT"
+                    "isolatedCreated": true,
+                    "marginLevel": "0.00000000",
+                    "marginLevelStatus": "EXCESSIVE", // "EXCESSIVE", "NORMAL", "MARGIN_CALL", "PRE_LIQUIDATION", "FORCE_LIQUIDATION"
+                    "marginRatio": "0.00000000",
+                    "indexPrice": "10000.00000000"
+                    "liquidatePrice": "1000.00000000",
+                    "liquidateRate": "1.00000000"
+                    "tradeEnabled": true
+                  }
+                ]
+                "totalAssetOfBtc": "0.00000000",
+                "totalLiabilityOfBtc": "0.00000000",
+                "totalNetAssetOfBtc": "0.00000000"
+            }
+
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._request_margin_api('get', 'margin/isolated/account', signed=True, data=params)
+
     # Lending Endpoints
 
     def get_lending_product_list(self, **params):
@@ -5518,6 +5664,12 @@ class AsyncClient(BaseClient):
 
     async def create_isolated_margin_account(self, **params):
         return await self._request_margin_api('post', 'margin/isolated/create', signed=True, data=params)
+
+    async def transfer_isolated_margin_account(self, **params):
+        return await self._request_margin_api('post', 'margin/isolated/transfer', signed=True, data=params)
+
+    async def get_isolated_margin_account_info(self, **params):
+        return await self._request_margin_api('post', 'margin/isolated/account', signed=True, data=params)
 
     # Lending Endpoints
 
