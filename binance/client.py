@@ -4032,6 +4032,12 @@ class Client(BaseClient):
         """
         return self._request_margin_api('get', 'margin/isolated/transfer', signed=True, data=params)
 
+    def get_all_coins_info(self, **params):
+        """Get information of coins (available for deposit and withdraw) for user.
+        https://binance-docs.github.io/apidocs/spot/en/#all-coins-39-information-user_data
+        """
+        return self._request_margin_api('get', 'capital/config/getall', signed=True, data=params)
+
     def get_isolated_margin_account_info(self, **params):
         """Query isolated margin account info (USER_DATA)
         https://binance-docs.github.io/apidocs/spot/en/#query-isolated-margin-account-info-user_data
@@ -5732,6 +5738,9 @@ class AsyncClient(BaseClient):
 
     async def get_isolated_margin_transfer_history(self, **params):
         return await self._request_margin_api('get', 'margin/isolated/transfer', signed=True, data=params)
+
+    async def get_all_coins_info(self, **params):
+        return await self._request_margin_api('get', 'capital/config/getall', signed=True, data=params)
 
     async def get_isolated_margin_account_info(self, **params):
         return await self._request_margin_api('get', 'margin/isolated/account', signed=True, data=params)
