@@ -141,6 +141,7 @@ class BinanceSocketManager:
         self._account_callbacks = {'user': None, 'margin': None, 'perp': None, 'delivery': None}
         self.socket_type_url_mapping = {
             'user': self.STREAM_URL,
+            'margin': self.STREAM_URL,
             'perp': self.FSTREAM_URL,
             'delivery': self.DSTREAM_URL,
         }
