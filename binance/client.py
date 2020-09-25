@@ -72,6 +72,10 @@ class BaseClient(ABC):
     ORDER_RESP_TYPE_RESULT = 'RESULT'
     ORDER_RESP_TYPE_FULL = 'FULL'
 
+    SIDE_EFFECT_TYPE_NO_SIDE_EFFECT = 'NO_SIDE_EFFECT'
+    SIDE_EFFECT_TYPE_MARGIN_BUY = 'MARGIN_BUY'
+    SIDE_EFFECT_TYPE_AUTO_REPAY = 'AUTO_REPAY'
+
     # For accessing the data returned by Client.aggregate_trades().
     AGG_ID = 'a'
     AGG_PRICE = 'p'
