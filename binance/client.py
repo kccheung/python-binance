@@ -3607,8 +3607,8 @@ class Client(BaseClient):
         res = self._request_margin_api('post', 'userDataStream', signed=True, data={})
         return res['listenKey']
 
-    def isolated_stream_get_listen_key(self):
-        res = self._request_margin_api('post', 'userDataStream/isolated', signed=True, data={})
+    def isolated_stream_get_listen_key(self, symbol):
+        res = self._request_margin_api('post', 'userDataStream/isolated', signed=True, data={'symbol': symbol})
         return res['listenKey']
 
     def future_stream_get_listen_key(self):
@@ -3639,8 +3639,8 @@ class Client(BaseClient):
         params = {'listenKey': listenKey}
         return self._request_margin_api('put', 'userDataStream', signed=True, data=params)
 
-    def isolated_stream_keepalive(self, listenKey):
-        params = {'listenKey': listenKey}
+    def isolated_stream_keepalive(self, listenKey, symbol):
+        params = {'listenKey': listenKey, 'symbol': symbol}
         return self._request_margin_api('put', 'userDataStream/isolated', signed=True, data=params)
 
     def future_stream_keepalive(self, listenKey):
@@ -3671,8 +3671,8 @@ class Client(BaseClient):
         params = {'listenKey': listenKey}
         return self._request_margin_api('delete', 'userDataStream', signed=True, data=params)
 
-    def isolated_stream_close(self, listenKey):
-        params = {'listenKey': listenKey}
+    def isolated_stream_close(self, listenKey, symbol):
+        params = {'listenKey': listenKey, 'symbol': symbol}
         return self._request_margin_api('delete', 'userDataStream/isolated', signed=True, data=params)
 
     def future_stream_close(self, listenKey):
@@ -5695,8 +5695,8 @@ class AsyncClient(BaseClient):
         res = await self._request_margin_api('post', 'userDataStream', signed=True, data={})
         return res['listenKey']
 
-    async def isolated_stream_get_listen_key(self):
-        res = await self._request_margin_api('post', 'userDataStream/isolated', signed=True, data={})
+    async def isolated_stream_get_listen_key(self, symbol):
+        res = await self._request_margin_api('post', 'userDataStream/isolated', signed=True, data={'symbol': symbol})
         return res['listenKey']
 
     async def future_stream_get_listen_key(self):
@@ -5711,8 +5711,8 @@ class AsyncClient(BaseClient):
         params = {'listenKey': listenKey}
         return await self._request_margin_api('put', 'userDataStream', signed=True, data=params)
 
-    async def isolated_stream_keepalive(self, listenKey):
-        params = {'listenKey': listenKey}
+    async def isolated_stream_keepalive(self, listenKey, symbol):
+        params = {'listenKey': listenKey, 'symbol': symbol}
         return await self._request_margin_api('put', 'userDataStream/isolated', signed=True, data=params)
 
     async def future_stream_keepalive(self, listenKey):
@@ -5727,8 +5727,8 @@ class AsyncClient(BaseClient):
         params = {'listenKey': listenKey}
         return await self._request_margin_api('delete', 'userDataStream', signed=True, data=params)
 
-    async def isolated_stream_close(self, listenKey):
-        params = {'listenKey': listenKey}
+    async def isolated_stream_close(self, listenKey, symbol):
+        params = {'listenKey': listenKey, 'symbol': symbol}
         return await self._request_margin_api('delete', 'userDataStream/isolated', signed=True, data=params)
 
     async def future_stream_close(self, listenKey):

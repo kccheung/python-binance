@@ -137,7 +137,7 @@ class BinanceSocketManager:
         self._log = logging.getLogger(__name__)
         self._user_timeout = user_timeout
         self._timers = {'user': None, 'margin': None, 'isolated': None, 'perp': None, 'delivery': None}
-        self._listen_keys = {'user': None, 'margin': None, 'isolated': None, 'perp': None, 'delivery': None}
+        self._listen_keys = {'user': None, 'margin': None, 'isolated': {}, 'perp': None, 'delivery': None}
         self._account_callbacks = {'user': None, 'margin': None, 'isolated': None, 'perp': None, 'delivery': None}
         self.socket_type_url_mapping = {
             'user': self.STREAM_URL,
@@ -646,26 +646,34 @@ class BinanceSocketManager:
 
     def _keepalive_account_socket(self, socket_type):
         async def _run():
-            if socket_type == 'user':
-                listen_key = await self._client.stream_get_listen_key()
-            elif socket_type == 'margin':
-                listen_key = await self._client.margin_stream_get_listen_key()
-            elif socket_type == 'isolated':
-                listen_key = await self._client.isolated_stream_get_listen_key()
-            elif socket_type == 'perp':
-                listen_key = await self._client.future_stream_get_listen_key()
-            elif socket_type == 'delivery':
-                listen_key = await self._client.tfuture_stream_get_listen_key()
-            callback = self._account_callbacks[socket_type]
-            self._log.debug("new key {} old key {}".format(listen_key, self._listen_keys[socket_type]))
-            if listen_key != self._listen_keys[socket_type]:
-                # Start a new socket with the key received
-                # `_start_account_socket` automatically cleanup open sockets
-                # and starts timer to keep socket alive
-                await self._start_account_socket(socket_type, listen_key, callback)
+            if socket_type == 'isolated':
+                for symbol, old_key in self._listen_keys['isolated']:
+                    listen_key = await self._client.isolated_stream_get_listen_key(symbol)
+                    callback = self._account_callbacks[socket_type]
+                    self._log.debug("new key {} old key {}".format(listen_key, old_key))
+                    if listen_key != old_key:
+                        await self._start_account_socket(socket_type, listen_key, callback, symbol)
+                    else:
+                        self._start_socket_timer(socket_type)
             else:
-                # Restart timer only if the user listen key remains the same
-                self._start_socket_timer(socket_type)
+                if socket_type == 'user':
+                    listen_key = await self._client.stream_get_listen_key()
+                elif socket_type == 'margin':
+                    listen_key = await self._client.margin_stream_get_listen_key()
+                elif socket_type == 'perp':
+                    listen_key = await self._client.future_stream_get_listen_key()
+                elif socket_type == 'delivery':
+                    listen_key = await self._client.tfuture_stream_get_listen_key()
+                callback = self._account_callbacks[socket_type]
+                self._log.debug("new key {} old key {}".format(listen_key, self._listen_keys[socket_type]))
+                if listen_key != self._listen_keys[socket_type]:
+                    # Start a new socket with the key received
+                    # `_start_account_socket` automatically cleanup open sockets
+                    # and starts timer to keep socket alive
+                    await self._start_account_socket(socket_type, listen_key, callback)
+                else:
+                    # Restart timer only if the user listen key remains the same
+                    self._start_socket_timer(socket_type)
 
         # this allows execution to keep going
         asyncio.ensure_future(_run())
@@ -687,10 +695,16 @@ class BinanceSocketManager:
 
         # check if we have stream socket
         for key in self._listen_keys:
-            if self._listen_keys[key] and len(conn_key) >= 60 and conn_key[:60] == self._listen_keys[key]:
+            if key == 'isolated':
+                for symbol, isolated_key in self._listen_keys['isolated']:
+                    if self._listen_keys['isolated'][symbol] and len(conn_key) >= 60 and conn_key[:60] == self._listen_keys['isolated'][symbol]:
+                        await self._stop_account_socket(key, symbol)
+                        return
+            elif self._listen_keys[key] and len(conn_key) >= 60 and conn_key[:60] == self._listen_keys[key]:
                 await self._stop_account_socket(key)
+                break
 
-    async def _stop_account_socket(self, socket_type):
+    async def _stop_account_socket(self, socket_type, symbol=None):
         if not self._listen_keys[socket_type]:
             return
         # stop the timer
@@ -699,15 +713,15 @@ class BinanceSocketManager:
             self._timers[socket_type] = None
         # close the stream
         if socket_type == 'user':
-            await self._client.stream_close(listenKey=self._listen_keys[socket_type])
+            await self._client.stream_close(self._listen_keys[socket_type])
         elif socket_type == 'margin':
-            await self._client.margin_stream_close(listenKey=self._listen_keys[socket_type])
+            await self._client.margin_stream_close(self._listen_keys[socket_type])
         elif socket_type == 'isolated':
-            await self._client.isolated_stream_close(listenKey=self._listen_keys[socket_type])
+            await self._client.isolated_stream_close(self._listen_keys[socket_type], symbol)
         elif socket_type == 'perp':
-            await self._client.future_stream_close(listenKey=self._listen_keys[socket_type])
+            await self._client.future_stream_close(self._listen_keys[socket_type])
         elif socket_type == 'delivery':
-            await self._client.tfuture_stream_close(listenKey=self._listen_keys[socket_type])
+            await self._client.tfuture_stream_close(self._listen_keys[socket_type])
         self._listen_keys[socket_type] = None
 
     async def start_margin_socket(self, callback):
@@ -724,9 +738,9 @@ class BinanceSocketManager:
         conn_key = await self._start_account_socket('margin', margin_listen_key, callback)
         return conn_key
 
-    async def start_isolated_socket(self, callback):
+    async def start_isolated_socket(self, symbol, callback):
         # Get the user margin listen key
-        isolated_listen_key = await self._client.isolated_stream_get_listen_key()
+        isolated_listen_key = await self._client.isolated_stream_get_listen_key(symbol)
         # and start the socket with this specific key
         conn_key = await self._start_account_socket('isolated', isolated_listen_key, callback)
         return conn_key
@@ -745,10 +759,13 @@ class BinanceSocketManager:
         conn_key = await self._start_account_socket('delivery', tfuture_listen_key, callback)
         return conn_key
 
-    async def _start_account_socket(self, socket_type, listen_key, callback):
+    async def _start_account_socket(self, socket_type, listen_key, callback, symbol=None):
         """Starts one of user or margin socket"""
         await self._check_account_socket_open(listen_key)
-        self._listen_keys[socket_type] = listen_key
+        if socket_type == 'isolated':
+            self._listen_keys[socket_type][symbol] = listen_key
+        else:
+            self._listen_keys[socket_type] = listen_key
         self._account_callbacks[socket_type] = callback
         conn_key = await self._start_socket(listen_key, callback, socket_type=socket_type)
 
