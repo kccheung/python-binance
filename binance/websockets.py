@@ -742,7 +742,7 @@ class BinanceSocketManager:
         # Get the user margin listen key
         isolated_listen_key = await self._client.isolated_stream_get_listen_key(symbol)
         # and start the socket with this specific key
-        conn_key = await self._start_account_socket('isolated', isolated_listen_key, callback)
+        conn_key = await self._start_account_socket('isolated', isolated_listen_key, callback, symbol)
         return conn_key
 
     async def start_future_socket(self, callback):
