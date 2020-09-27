@@ -138,7 +138,7 @@ class BinanceSocketManager:
         self._user_timeout = user_timeout
         self._timers = {'user': None, 'margin': None, 'isolated': {}, 'perp': None, 'delivery': None}
         self._listen_keys = {'user': None, 'margin': None, 'isolated': {}, 'perp': None, 'delivery': None}
-        self._account_callbacks = {'user': None, 'margin': None, 'isolated': None, 'perp': None, 'delivery': None}
+        self._account_callbacks = {'user': None, 'margin': None, 'isolated': {}, 'perp': None, 'delivery': None}
         self.socket_type_url_mapping = {
             'user': self.STREAM_URL,
             'margin': self.STREAM_URL,
@@ -653,7 +653,7 @@ class BinanceSocketManager:
             if socket_type == 'isolated':
                 for symbol, old_key in self._listen_keys['isolated']:
                     listen_key = await self._client.isolated_stream_get_listen_key(symbol)
-                    callback = self._account_callbacks[socket_type]
+                    callback = self._account_callbacks[socket_type][symbol]
                     self._log.debug("new key {} old key {}".format(listen_key, old_key))
                     if listen_key != old_key:
                         await self._start_account_socket(socket_type, listen_key, callback, symbol)
@@ -784,9 +784,10 @@ class BinanceSocketManager:
         await self._check_account_socket_open(listen_key)
         if socket_type == 'isolated':
             self._listen_keys[socket_type][symbol] = listen_key
+            self._account_callbacks[socket_type][symbol] = callback
         else:
             self._listen_keys[socket_type] = listen_key
-        self._account_callbacks[socket_type] = callback
+            self._account_callbacks[socket_type] = callback
         conn_key = await self._start_socket(listen_key, callback, socket_type=socket_type)
 
         # start timer to keep socket alive
