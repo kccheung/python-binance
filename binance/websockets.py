@@ -651,7 +651,7 @@ class BinanceSocketManager:
     def _keepalive_account_socket(self, socket_type):
         async def _run():
             if socket_type == 'isolated':
-                for symbol, old_key in self._listen_keys['isolated']:
+                for symbol, old_key in self._listen_keys['isolated'].items():
                     listen_key = await self._client.isolated_stream_get_listen_key(symbol)
                     callback = self._account_callbacks[socket_type][symbol]
                     self._log.debug("new key {} old key {}".format(listen_key, old_key))
@@ -700,8 +700,8 @@ class BinanceSocketManager:
         # check if we have stream socket
         for key in self._listen_keys:
             if key == 'isolated':
-                for symbol, isolated_key in self._listen_keys['isolated']:
-                    if self._listen_keys['isolated'][symbol] and len(conn_key) >= 60 and conn_key[:60] == self._listen_keys['isolated'][symbol]:
+                for symbol, isolated_key in self._listen_keys['isolated'].items():
+                    if isolated_key and len(conn_key) >= 60 and conn_key[:60] == isolated_key:
                         await self._stop_account_socket(key, symbol)
                         return
             elif self._listen_keys[key] and len(conn_key) >= 60 and conn_key[:60] == self._listen_keys[key]:
