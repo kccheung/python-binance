@@ -4142,8 +4142,8 @@ class Client(BaseClient):
         """
         return self._request_margin_api('get', 'margin/isolated/pair', signed=True, data=params)
 
-    def get_all_isolated_margin_symbol(self, **params):
-        """Query all isolated margin symbol (USER_DATA)
+    def get_all_isolated_margin_symbols(self, **params):
+        """Query all isolated margin symbols (USER_DATA)
         https://binance-docs.github.io/apidocs/spot/en/#get-all-isolated-margin-symbol-user_data
 
         :param recvWindow: optional, the number of milliseconds the request is valid for, no more than 60000
@@ -5776,7 +5776,7 @@ class AsyncClient(BaseClient):
     async def get_isolated_margin_symbol(self, **params):
         return await self._request_margin_api('get', 'margin/isolated/pair', signed=True, data=params)
 
-    async def get_all_isolated_margin_symbol(self, **params):
+    async def get_all_isolated_margin_symbols(self, **params):
         return await self._request_margin_api('get', 'margin/isolated/allPairs', signed=True, data=params)
 
     # Lending Endpoints
