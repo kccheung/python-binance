@@ -1006,7 +1006,7 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
 
         """
-        return self._get('24hr', data=params)
+        return self._get('ticker/24hr', data=params)
 
     def get_symbol_ticker(self, **params):
         """Latest price for a symbol or symbols.
