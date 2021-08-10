@@ -7,13 +7,14 @@ from random import random
 import websockets as ws
 
 from .client import Client
+from .enums import KLINE_INTERVAL_1MINUTE
 
 
 class ReconnectingWebsocket:
     MAX_RECONNECTS = 1000
     MAX_RECONNECT_SECONDS = 1
     MIN_RECONNECT_WAIT = 0.1
-    TIMEOUT = 2
+    TIMEOUT = 60
 
     def __init__(self, loop, ws_domain, path, coro, prefix='ws/'):
         self._loop = loop
@@ -228,7 +229,7 @@ class BinanceSocketManager:
         await self._start_socket(path, coro)
         return path
 
-    async def start_kline_socket(self, symbol, coro, interval=Client.KLINE_INTERVAL_1MINUTE):
+    async def start_kline_socket(self, symbol, coro, interval=KLINE_INTERVAL_1MINUTE):
         """Start a websocket for symbol kline data
 
         https://github.com/binance-exchange/binance-official-api-docs/blob/master/web-socket-streams.md#klinecandlestick-streams
