@@ -11,7 +11,7 @@ import websockets as ws
 
 from .client import AsyncClient
 from .exceptions import BinanceWebsocketUnableToConnect
-from .enums import FuturesType
+from .enums import KLINE_INTERVAL_1MINUTE, FuturesType
 from .threaded_stream import ThreadedApiManager
 
 KEEPALIVE_TIMEOUT = 5 * 60  # 5 minutes
@@ -411,7 +411,7 @@ class BinanceSocketManager:
                 raise ValueError("Websocket interval value not allowed. Allowed values are {100, 1000}")
         return self._get_socket(socket_name)
 
-    def kline_socket(self, symbol: str, interval=AsyncClient.KLINE_INTERVAL_1MINUTE):
+    def kline_socket(self, symbol: str, interval=KLINE_INTERVAL_1MINUTE):
         """Start a websocket for symbol kline data
         https://github.com/binance-exchange/binance-official-api-docs/blob/master/web-socket-streams.md#klinecandlestick-streams
         :param symbol: required
