@@ -165,7 +165,6 @@ class ReconnectingWebsocket:
         return self.MIN_RECONNECT_WAIT
 
     async def before_reconnect(self):
-        self._reconnecting.clear()
         if self.ws:
             await self._conn.__aexit__(None, None, None)
             self.ws = None
@@ -178,6 +177,7 @@ class ReconnectingWebsocket:
     async def _reconnect(self):
         if self.ws_state == WSListenerState.RECONNECTING:
             return
+        self._reconnecting.clear()
         self.ws_state = WSListenerState.RECONNECTING
         await self.before_reconnect()
         if self._reconnects < self.MAX_RECONNECTS:
