@@ -914,7 +914,7 @@ class ThreadedWebsocketManager(ThreadedApiManager):
             }
         )
 
-    def start_kline_socket(self, callback: Callable, symbol: str, interval=AsyncClient.KLINE_INTERVAL_1MINUTE) -> str:
+    def start_kline_socket(self, callback: Callable, symbol: str, interval=KLINE_INTERVAL_1MINUTE) -> str:
         return self._start_async_socket(
             callback=callback,
             socket_name='kline_socket',
