@@ -123,7 +123,7 @@ class BinanceSocketManager:
     WEBSOCKET_DEPTH_10 = '10'
     WEBSOCKET_DEPTH_20 = '20'
 
-    DEFAULT_USER_TIMEOUT = 30 * 60  # 30 minutes
+    DEFAULT_USER_TIMEOUT = 5 * 60  # 5 minutes
 
     def __init__(self, client, loop, user_timeout=DEFAULT_USER_TIMEOUT):
         """Initialise the BinanceSocketManager

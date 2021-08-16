@@ -33,11 +33,10 @@ class BinanceSocketType(str, Enum):
 
 
 class ReconnectingWebsocket:
-    MAX_RECONNECTS = 5
-    MAX_RECONNECT_SECONDS = 60
+    MAX_RECONNECTS = 1000
+    MAX_RECONNECT_SECONDS = 1
     MIN_RECONNECT_WAIT = 0.1
     TIMEOUT = 60
-    NO_MESSAGE_RECONNECT_TIMEOUT = 60
 
     def __init__(
             self, loop, url: str, path: Optional[str] = None, prefix: str = 'ws/', exit_coro=None
@@ -272,10 +271,6 @@ class BinanceSocketManager:
     FSTREAM_TESTNET_URL = 'wss://stream.binancefuture.com/'
     DSTREAM_URL = 'wss://dstream.binance.com/'
     DSTREAM_TESTNET_URL = 'wss://dstream.binancefuture.com/'
-
-    WEBSOCKET_DEPTH_5 = '5'
-    WEBSOCKET_DEPTH_10 = '10'
-    WEBSOCKET_DEPTH_20 = '20'
 
     def __init__(self, client: AsyncClient, loop=None, user_timeout=KEEPALIVE_TIMEOUT):
         """Initialise the BinanceSocketManager
