@@ -100,55 +100,67 @@ class ReconnectingWebsocket:
             return None
 
     async def _read_loop(self):
-        while True:
-            res = None
+        res = None
+        while 1:
             if not self.ws or self.ws_state != WSListenerState.STREAMING:
                 await self._wait_for_reconnect()
                 break
-            if self.ws_state == WSListenerState.EXITING:
-                break
-            if self.ws.state == ws.protocol.State.CLOSING:
-                break
-            if self.ws.state == ws.protocol.State.CLOSED:
-                try:
-                    await self._reconnect()
-                except BinanceWebsocketUnableToConnect:
-                    return {
-                        'e': 'error',
-                        'm': 'Max reconnect retries reached'
-                    }
-                else:
-                    break
+            # if self.ws_state == WSListenerState.EXITING:
+            #     break
+            # if self.ws.state == ws.protocol.State.CLOSING:
+            #     break
+            # if self.ws.state == ws.protocol.State.CLOSED:
+            #     try:
+            #         await self._reconnect()
+            #     except BinanceWebsocketUnableToConnect:
+            #         return {
+            #             'e': 'error',
+            #             'm': 'Max reconnect retries reached'
+            #         }
+            #     else:
+            #         break
             try:
                 res = await asyncio.wait_for(self.ws.recv(), timeout=self.TIMEOUT)
             except asyncio.TimeoutError:
                 self._log.debug(f"no message in {self.TIMEOUT} seconds")
+                continue
             except asyncio.CancelledError as e:
                 self._log.debug(f"cancelled error {e}")
                 break
             except asyncio.IncompleteReadError as e:
                 self._log.debug(f"incomplete read error {e}")
+                continue
+            except ws.ConnectionClosed as e:
+                self._log.debug('ws connection closed:{}'.format(e))
+                if self.ws_state not in {WSListenerState.EXITING, WSListenerState.RECONNECTING}:
+                    try:
+                        await self._reconnect()
+                    except BinanceWebsocketUnableToConnect:
+                        return {
+                            'e': 'error',
+                            'm': 'Max reconnect retries reached'
+                        }
+                break
             except Exception as e:
                 self._log.debug(f"exception {e}")
                 break
             else:
-                if self.ws_state in (WSListenerState.EXITING, WSListenerState.RECONNECTING):
+                if self.ws_state in {WSListenerState.EXITING, WSListenerState.RECONNECTING}:
                     break
                 res = self._handle_message(res)
-                if self.ws_state in (WSListenerState.EXITING, WSListenerState.RECONNECTING):
-                    break
+                # if self.ws_state in {WSListenerState.EXITING, WSListenerState.RECONNECTING}:
+                #     break
 
-            if res and self._queue.qsize() < 100:
-                await self._queue.put(res)
+            if res:
+                self._queue.put_nowait(res)
 
     async def recv(self):
-        res = None
-        while not res:
+        while 1:
             try:
                 res = await asyncio.wait_for(self._queue.get(), timeout=self.TIMEOUT)
+                return res
             except asyncio.TimeoutError:
                 self._log.debug(f"no message in {self.TIMEOUT} seconds")
-        return res
 
     async def _wait_for_reconnect(self):
         if self.ws_state == WSListenerState.RECONNECTING:
@@ -228,18 +240,24 @@ class KeepAliveWebsocket(ReconnectingWebsocket):
         )
 
     async def _get_listen_key(self):
-        if self._keepalive_type == 'user':
-            listen_key = await self._client.stream_get_listen_key()
-        elif self._keepalive_type == 'margin':  # cross-margin
-            listen_key = await self._client.margin_stream_get_listen_key()
-        elif self._keepalive_type == 'futures':
-            listen_key = await self._client.futures_stream_get_listen_key()
-        elif self._keepalive_type == 'coin_futures':
-            listen_key = await self._client.tfutures_stream_get_listen_key()
-        else:  # isolated margin
-            # Passing symbol for isolated margin
-            listen_key = await self._client.isolated_stream_get_listen_key(self._keepalive_type)
-        return listen_key
+        i = 0
+        while i < 10:
+            try:
+                if self._keepalive_type == 'user':
+                    listen_key = await self._client.stream_get_listen_key()
+                elif self._keepalive_type == 'margin':  # cross-margin
+                    listen_key = await self._client.margin_stream_get_listen_key()
+                elif self._keepalive_type == 'futures':
+                    listen_key = await self._client.futures_stream_get_listen_key()
+                elif self._keepalive_type == 'coin_futures':
+                    listen_key = await self._client.tfutures_stream_get_listen_key()
+                else:  # isolated margin
+                    # Passing symbol for isolated margin
+                    listen_key = await self._client.isolated_stream_get_listen_key(self._keepalive_type)
+                return listen_key
+            except Exception as e:
+                self._log.debug("get_listen_key exception: %s" % str(e))
+                i += 1
 
     async def _keepalive_socket(self):
         listen_key = await self._get_listen_key()
@@ -250,17 +268,24 @@ class KeepAliveWebsocket(ReconnectingWebsocket):
             await self._reconnect()
         else:
             self._log.debug("listen key same: keepalive")
-            if self._keepalive_type == 'user':
-                await self._client.stream_keepalive(self._path)
-            elif self._keepalive_type == 'margin':  # cross-margin
-                await self._client.margin_stream_keepalive(self._path)
-            elif self._keepalive_type == 'futures':
-                await self._client.futures_stream_keepalive(self._path)
-            elif self._keepalive_type == 'coin_futures':
-                await self._client.tfutures_stream_keepalive(self._path)
-            else:  # isolated margin
-                # Passing symbol for isolated margin
-                await self._client.isolated_stream_keepalive(self._path, self._keepalive_type)
+            i = 0
+            while i < 10:
+                try:
+                    if self._keepalive_type == 'user':
+                        await self._client.stream_keepalive(self._path)
+                    elif self._keepalive_type == 'margin':  # cross-margin
+                        await self._client.margin_stream_keepalive(self._path)
+                    elif self._keepalive_type == 'futures':
+                        await self._client.futures_stream_keepalive(self._path)
+                    elif self._keepalive_type == 'coin_futures':
+                        await self._client.tfutures_stream_keepalive(self._path)
+                    else:  # isolated margin
+                        # Passing symbol for isolated margin
+                        await self._client.isolated_stream_keepalive(self._path, self._keepalive_type)
+                    break
+                except Exception as e:
+                    self._log.debug("keepalive_socket exception: %s" % str(e))
+                    i += 1
             self._start_socket_timer()
 
 
