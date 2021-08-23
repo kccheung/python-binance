@@ -168,6 +168,24 @@ class Client(BaseClient):
         self.response = getattr(self.session, method)(uri, **kwargs)
         return self._handle_response(self.response)
 
+    def _request_fast(self, method, uri: str, query_string: str, timeout: float = self.REQUEST_TIMEOUT):
+        self.response = getattr(self.session, method)(uri, params=query_string, timeout=timeout)
+        return self._handle_response(self.response)
+
+    def _get_signed_fast(self, uri: str, query_string: str, timeout: float = self.REQUEST_TIMEOUT):
+        query_string += '&timestamp=%0.0f' % (time.time() * 1000 + self.timestamp_offset)
+        m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
+        self.response = self.session.get(uri, params='%s&signature=%s' % (query_string, m.hexdigest()), timeout=timeout)
+        return self._handle_response(self.response)
+
+    def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = self.REQUEST_TIMEOUT):
+        request_body.append(('timestamp', int(time.time() * 1000 + self.timestamp_offset)))
+        query_string = '&'.join('%s=%s' % (data[0], data[1]) for data in request_body)
+        m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
+        request_body.append(('signature', m.hexdigest()))
+        self.response = getattr(self.session, method)(uri, data=request_body, timeout=timeout)
+        return self._handle_response(self.response)
+
     @staticmethod
     def _handle_response(response: requests.Response):
         """Internal helper for handling API responses from the Binance server.
@@ -1070,6 +1088,9 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException, BinanceOrderException, BinanceOrderMinAmountException, BinanceOrderMinPriceException, BinanceOrderMinTotalException, BinanceOrderUnknownSymbolException, BinanceOrderInactiveSymbolException
         """
         return self._post('order', True, data=params)
+
+    def create_order_fast(self, request_body: List[Tuple[str, str]], timeout: float):
+        return self._other_signed_fast('post', self.API_URL + '/order', request_body, timeout)
 
     def create_oco_order(self, **params):
         """Send in a new OCO order
@@ -4558,6 +4579,13 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
         """
         return self._request_margin_api('get', 'capital/config/getall', signed=True, data=params)
+
+    def close_connection(self):
+        if self.session:
+            self.session.close()
+
+    def __del__(self):
+        self.close_connection()
 
 
 class AsyncClient(BaseClient):
