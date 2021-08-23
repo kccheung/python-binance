@@ -168,17 +168,17 @@ class Client(BaseClient):
         self.response = getattr(self.session, method)(uri, **kwargs)
         return self._handle_response(self.response)
 
-    def _request_fast(self, method, uri: str, query_string: str, timeout: float = self.REQUEST_TIMEOUT):
+    def _request_fast(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         self.response = getattr(self.session, method)(uri, params=query_string, timeout=timeout)
         return self._handle_response(self.response)
 
-    def _get_signed_fast(self, uri: str, query_string: str, timeout: float = self.REQUEST_TIMEOUT):
+    def _get_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         query_string += '&timestamp=%0.0f' % (time.time() * 1000 + self.timestamp_offset)
         m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
         self.response = self.session.get(uri, params='%s&signature=%s' % (query_string, m.hexdigest()), timeout=timeout)
         return self._handle_response(self.response)
 
-    def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = self.REQUEST_TIMEOUT):
+    def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         request_body.append(('timestamp', int(time.time() * 1000 + self.timestamp_offset)))
         query_string = '&'.join('%s=%s' % (data[0], data[1]) for data in request_body)
         m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
