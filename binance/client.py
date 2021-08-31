@@ -244,6 +244,7 @@ class Client(BaseClient):
 
     def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: int = 0, requests_params: Dict = {}):
         super().__init__(api_key, api_secret, timestamp_offset, requests_params)
+        self.REQUEST_TIMEOUT = BaseClient.REQUEST_TIMEOUT
         # init DNS and SSL cert
         self.ping()
         self.reset_timestamp_offset()
@@ -4697,11 +4698,12 @@ class AsyncClient(BaseClient):
 
         self.loop = loop or asyncio.get_event_loop()
         super().__init__(api_key, api_secret, timestamp_offset, requests_params, tld)
+        self.REQUEST_TIMEOUT = BaseClient.REQUEST_TIMEOUT
 
     @classmethod
     async def create(cls, api_key='', api_secret='', timestamp_offset=0, requests_params=None, tld='com', loop=None):
         self = cls(api_key, api_secret, timestamp_offset, requests_params, tld, loop)
-        await self.ping()
+        await self.ping_fast()
         return self
 
     def _init_session(self) -> aiohttp.ClientSession:
@@ -4848,7 +4850,7 @@ class AsyncClient(BaseClient):
 
     get_order_book.__doc__ = Client.get_order_book.__doc__
 
-    async def get_order_book_fast(self, query_string: str, timeout: float = REQUEST_TIMEOUT) -> Dict:
+    async def get_order_book_fast(self, query_string: str, timeout: float = self.REQUEST_TIMEOUT) -> Dict:
         return await self._request_fast('get', self.GET_ORDER_BOOK_URLS, query_string, timeout)
 
     async def get_recent_trades(self, **params) -> Dict:
