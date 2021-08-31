@@ -13,8 +13,14 @@ from .helpers import interval_to_milliseconds, convert_ts_str
 from .exceptions import BinanceAPIException, BinanceRequestException, NotImplementedException
 from .enums import AGG_ID, HistoricalKlinesType
 
+from yarl import URL
+
 
 class BaseClient:
+    BASE_API_URLS = ['https://api.binance.com',
+                     'https://api1.binance.com',
+                     'https://api2.binance.com',
+                     'https://api3.binance.com']
     API_URL = 'https://api.binance.{}/api'
     API_TESTNET_URL = 'https://testnet.binance.vision/api'
     MARGIN_API_URL = 'https://api.binance.{}/sapi'
@@ -51,6 +57,91 @@ class BaseClient:
         self._requests_params = requests_params
         self.response = None
         self.timestamp_offset = timestamp_offset
+
+        self.N_BASE_API_URLS = len(self.BASE_API_URLS)
+        self.PING_URLS = [base_url + '/api/v3/ping' for base_url in self.BASE_API_URLS]
+        self.GET_SERVER_TIME_URLS = [base_url + '/api/v3/time' for base_url in self.BASE_API_URLS]
+        self.GET_ORDER_BOOK_URLS = [base_url + '/api/v3/depth' for base_url in self.BASE_API_URLS]
+        self.CREATE_ORDER_URLS = [base_url + '/api/v3/order' for base_url in self.BASE_API_URLS]
+
+        self.base_api_url_location = 0
+        self.base_api_url = self.BASE_API_URLS[0]
+        self.ping_url = self.PING_URLS[0]
+        self.get_server_time_url = self.GET_SERVER_TIME_URLS[0]
+        self.get_order_book_url = self.GET_ORDER_BOOK_URLS[0]
+        self.create_order_url = self.CREATE_ORDER_URLS[0]
+
+    def get_best_location(self, n_sample: int, timeout: float = REQUEST_TIMEOUT) -> int:
+        total_elapseds = {i: 0 for i in range(self.N_BASE_API_URLS)}
+        for _ in range(n_sample):
+            for i in range(self.N_BASE_API_URLS):
+                try:
+                    response = requests.get(self.PING_URLS[i], timeout=timeout)
+                except requests.exceptions.Timeout:
+                    total_elapseds[i] += timeout
+                else:
+                    total_elapseds[i] += response.elapsed.total_seconds()
+        min_elapsed = total_elapseds[self.N_BASE_API_URLS - 1]
+        min_location = self.N_BASE_API_URLS - 1
+        for i in range(self.N_BASE_API_URLS - 1):
+            if total_elapseds[i] < min_elapsed:
+                min_location = i
+                min_elapsed = total_elapseds[i]
+        return min_location
+
+    async def async_get_best_location(self, n_sample: int, timeout: float = REQUEST_TIMEOUT) -> int:
+        elapsed = {URL(url): 0 for url in self.PING_URLS}
+        request_start = {URL(url): False for url in self.PING_URLS}
+
+        async def on_request_start(session, trace_config_ctx, params):
+            elapsed[params.url] -= time.monotonic()
+            request_start[params.url] = True
+
+        async def on_request_end(session, trace_config_ctx, params):
+            elapsed[params.url] += time.monotonic()
+            request_start[params.url] = False
+
+        trace_config = aiohttp.TraceConfig()
+        trace_config.on_request_start.append(on_request_start)
+        trace_config.on_request_end.append(on_request_end)
+
+        async with aiohttp.ClientSession(trace_configs=[trace_config]) as client_session:
+            async def add_ping_time(url):
+                try:
+                    await client_session.get(url, timeout=timeout)
+                except asyncio.TimeoutError:
+                    if request_start[URL(url)]:
+                        elapsed[URL(url)] += time.monotonic()
+                        request_start[URL(url)] = False
+                    else:
+                        elapsed[URL(url)] += timeout
+
+            for _ in range(n_sample):
+                tasks = [add_ping_time(url) for url in self.PING_URLS]
+                await asyncio.gather(*tasks)
+
+        min_elapsed = elapseds[self.N_BASE_API_URLS - 1]
+        min_location = self.N_BASE_API_URLS - 1
+        for i in range(self.N_BASE_API_URLS - 1):
+            if total_elapseds[i] < min_elapsed:
+                min_location = i
+                min_elapsed = elapseds[i]
+        return min_location
+
+    def change_location(self, location: int) -> bool:
+        if location != self.base_api_url_location:
+            self.base_api_url_location = location
+            self.base_api_url = self.BASE_API_URLS[location]
+            self.ping_url = self.PING_URLS[location]
+            self.get_server_time_url = self.GET_SERVER_TIME_URLS[location]
+            self.get_order_book_url = self.GET_ORDER_BOOK_URLS[location]
+            self.create_order_url = self.CREATE_ORDER_URLS[location]
+
+            self.API_URL = self.base_api_url + '/api'
+            self.MARGIN_API_URL = self.base_api_url + '/sapi'
+            return True
+        else:
+            return False
 
     def _get_headers(self) -> Dict:
         headers = {
@@ -168,18 +259,18 @@ class Client(BaseClient):
         self.response = getattr(self.session, method)(uri, **kwargs)
         return self._handle_response(self.response)
 
-    def _request_fast(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+    def _request_fast(self, method, uri: str, query_string: str, timeout: float = REQUEST_TIMEOUT):
         self.response = getattr(self.session, method)(uri, params=query_string, timeout=timeout)
         return self._handle_response(self.response)
 
-    def _get_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+    def _get_signed_fast(self, uri: str, query_string: str, timeout: float = REQUEST_TIMEOUT):
         query_string += '&timestamp=%0.0f' % (time.time() * 1000 + self.timestamp_offset)
         m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
         self.response = self.session.get(uri, params='%s&signature=%s' % (query_string, m.hexdigest()), timeout=timeout)
         return self._handle_response(self.response)
 
-    def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        request_body.append(('timestamp', int(time.time() * 1000 + self.timestamp_offset)))
+    def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = REQUEST_TIMEOUT):
+        request_body.append(('timestamp', '%0.0f' % (time.time() * 1000 + self.timestamp_offset)))
         query_string = '&'.join('%s=%s' % (data[0], data[1]) for data in request_body)
         m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
         request_body.append(('signature', m.hexdigest()))
@@ -357,6 +448,9 @@ class Client(BaseClient):
         """
         return self._get('ping')
 
+    def ping_fast(self, timeout: float = REQUEST_TIMEOUT) -> Dict:
+        return self._request_fast('get', self.ping_url, '', timeout)
+
     def get_server_time(self) -> Dict:
         """Test connectivity to the Rest API and get the current server time.
         https://binance-docs.github.io/apidocs/spot/en/#check-server-time
@@ -369,9 +463,12 @@ class Client(BaseClient):
         """
         return self._get('time')
 
+    def get_server_time_fast(self, timeout: float = REQUEST_TIMEOUT) -> Dict:
+        return self._request_fast('get', self.get_server_time_url, '', timeout)
+
     def reset_timestamp_offset(self):
         send_time_local = time.time_ns()
-        receive_time_server = self.get_server_time()
+        receive_time_server = self.get_server_time_fast()
         self.timestamp_offset = -int((time.time_ns() + send_time_local) / 2000000.0) + receive_time_server['serverTime']
 
     # Market Data Endpoints
@@ -451,6 +548,9 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
         """
         return self._get('depth', data=params)
+
+    def get_order_book_fast(self, query_string: str, timeout: float = REQUEST_TIMEOUT) -> Dict:
+        return self._request_fast('get', self.GET_ORDER_BOOK_URLS, query_string, timeout)
 
     def get_recent_trades(self, **params) -> Dict:
         """Get recent trades (up to last 500).
@@ -1089,8 +1189,8 @@ class Client(BaseClient):
         """
         return self._post('order', True, data=params)
 
-    def create_order_fast(self, request_body: List[Tuple[str, str]], timeout: float):
-        return self._other_signed_fast('post', self.API_URL + '/order', request_body, timeout)
+    def create_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = REQUEST_TIMEOUT):
+        return self._other_signed_fast('post', self.create_order_url, request_body, timeout)
 
     def create_oco_order(self, **params):
         """Send in a new OCO order
@@ -4623,6 +4723,27 @@ class AsyncClient(BaseClient):
             self.response = response
             return await self._handle_response(response)
 
+    async def _request_fast(self, method, uri: str, query_string: str, timeout: float = REQUEST_TIMEOUT):
+        async with getattr(self.session, method)(uri, params=query_string, timeout=timeout) as response:
+            self.response = response
+            return self._handle_response(self.response)
+
+    async def _get_signed_fast(self, uri: str, query_string: str, timeout: float = REQUEST_TIMEOUT):
+        query_string += '&timestamp=%0.0f' % (time.time() * 1000 + self.timestamp_offset)
+        m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
+        async with self.session.get(uri, params='%s&signature=%s' % (query_string, m.hexdigest()), timeout=timeout) as response:
+            self.response = response
+            return self._handle_response(self.response)
+
+    async def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = REQUEST_TIMEOUT):
+        request_body.append(('timestamp', '%0.0f' % (time.time() * 1000 + self.timestamp_offset)))
+        query_string = '&'.join('%s=%s' % (data[0], data[1]) for data in request_body)
+        m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
+        request_body.append(('signature', m.hexdigest()))
+        async with getattr(self.session, method)(uri, data=request_body, timeout=timeout) as response:
+            self.response = response
+            return self._handle_response(self.response)
+
     async def _handle_response(self, response: aiohttp.ClientResponse):
         """Internal helper for handling API responses from the Binance server.
         Raises the appropriate exceptions when necessary; otherwise, returns the
@@ -4699,10 +4820,16 @@ class AsyncClient(BaseClient):
 
     ping.__doc__ = Client.ping.__doc__
 
+    async def ping_fast(self, timeout: float = REQUEST_TIMEOUT) -> Dict:
+        return await self._request_fast('get', self.ping_url, '', timeout)
+
     async def get_server_time(self) -> Dict:
         return await self._get('time')
 
     get_server_time.__doc__ = Client.get_server_time.__doc__
+
+    async def get_server_time_fast(self, timeout: float = REQUEST_TIMEOUT) -> Dict:
+        return await self._request_fast('get', self.get_server_time_url, '', timeout)
 
     # Market Data Endpoints
 
@@ -4720,6 +4847,9 @@ class AsyncClient(BaseClient):
         return await self._get('depth', data=params)
 
     get_order_book.__doc__ = Client.get_order_book.__doc__
+
+    async def get_order_book_fast(self, query_string: str, timeout: float = REQUEST_TIMEOUT) -> Dict:
+        return await self._request_fast('get', self.GET_ORDER_BOOK_URLS, query_string, timeout)
 
     async def get_recent_trades(self, **params) -> Dict:
         return await self._get('trades', data=params)
