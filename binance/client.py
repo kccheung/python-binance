@@ -90,16 +90,16 @@ class BaseClient:
         return min_location
 
     async def async_get_best_location(self, n_sample: int, timeout: float = REQUEST_TIMEOUT) -> int:
-        elapsed = {URL(url): 0 for url in self.PING_URLS}
-        request_start = {URL(url): False for url in self.PING_URLS}
+        total_elapseds = {URL(url): 0 for url in self.PING_URLS}
+        request_starts = {URL(url): False for url in self.PING_URLS}
 
         async def on_request_start(session, trace_config_ctx, params):
-            elapsed[params.url] -= time.monotonic()
-            request_start[params.url] = True
+            total_elapseds[params.url] -= time.monotonic()
+            request_starts[params.url] = True
 
         async def on_request_end(session, trace_config_ctx, params):
-            elapsed[params.url] += time.monotonic()
-            request_start[params.url] = False
+            total_elapseds[params.url] += time.monotonic()
+            request_starts[params.url] = False
 
         trace_config = aiohttp.TraceConfig()
         trace_config.on_request_start.append(on_request_start)
@@ -110,22 +110,22 @@ class BaseClient:
                 try:
                     await client_session.get(url, timeout=timeout)
                 except asyncio.TimeoutError:
-                    if request_start[URL(url)]:
-                        elapsed[URL(url)] += time.monotonic()
-                        request_start[URL(url)] = False
+                    if request_starts[URL(url)]:
+                        total_elapseds[URL(url)] += time.monotonic()
+                        request_starts[URL(url)] = False
                     else:
-                        elapsed[URL(url)] += timeout
+                        total_elapseds[URL(url)] += timeout
 
             for _ in range(n_sample):
                 tasks = [add_ping_time(url) for url in self.PING_URLS]
                 await asyncio.gather(*tasks)
 
-        min_elapsed = elapseds[self.N_BASE_API_URLS - 1]
+        min_elapsed = total_elapseds[URL(self.PING_URLS[self.N_BASE_API_URLS - 1])]
         min_location = self.N_BASE_API_URLS - 1
         for i in range(self.N_BASE_API_URLS - 1):
-            if total_elapseds[i] < min_elapsed:
+            if total_elapseds[URL(self.PING_URLS[i])] < min_elapsed:
                 min_location = i
-                min_elapsed = elapseds[i]
+                min_elapsed = total_elapseds[URL(self.PING_URLS[i])]
         return min_location
 
     def change_location(self, location: int) -> bool:
