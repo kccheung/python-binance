@@ -244,7 +244,6 @@ class Client(BaseClient):
 
     def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: int = 0, requests_params: Dict = {}):
         super().__init__(api_key, api_secret, timestamp_offset, requests_params)
-        self.REQUEST_TIMEOUT = BaseClient.REQUEST_TIMEOUT
         # init DNS and SSL cert
         self.ping()
         self.reset_timestamp_offset()
@@ -260,17 +259,17 @@ class Client(BaseClient):
         self.response = getattr(self.session, method)(uri, **kwargs)
         return self._handle_response(self.response)
 
-    def _request_fast(self, method, uri: str, query_string: str, timeout: float = REQUEST_TIMEOUT):
+    def _request_fast(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         self.response = getattr(self.session, method)(uri, params=query_string, timeout=timeout)
         return self._handle_response(self.response)
 
-    def _get_signed_fast(self, uri: str, query_string: str, timeout: float = REQUEST_TIMEOUT):
+    def _get_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         query_string += '&timestamp=%0.0f' % (time.time() * 1000 + self.timestamp_offset)
         m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
         self.response = self.session.get(uri, params='%s&signature=%s' % (query_string, m.hexdigest()), timeout=timeout)
         return self._handle_response(self.response)
 
-    def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = REQUEST_TIMEOUT):
+    def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         request_body.append(('timestamp', '%0.0f' % (time.time() * 1000 + self.timestamp_offset)))
         query_string = '&'.join('%s=%s' % (data[0], data[1]) for data in request_body)
         m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
@@ -449,7 +448,7 @@ class Client(BaseClient):
         """
         return self._get('ping')
 
-    def ping_fast(self, timeout: float = REQUEST_TIMEOUT) -> Dict:
+    def ping_fast(self, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
         return self._request_fast('get', self.ping_url, '', timeout)
 
     def get_server_time(self) -> Dict:
@@ -464,7 +463,7 @@ class Client(BaseClient):
         """
         return self._get('time')
 
-    def get_server_time_fast(self, timeout: float = REQUEST_TIMEOUT) -> Dict:
+    def get_server_time_fast(self, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
         return self._request_fast('get', self.get_server_time_url, '', timeout)
 
     def reset_timestamp_offset(self):
@@ -550,7 +549,7 @@ class Client(BaseClient):
         """
         return self._get('depth', data=params)
 
-    def get_order_book_fast(self, query_string: str, timeout: float = REQUEST_TIMEOUT) -> Dict:
+    def get_order_book_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
         return self._request_fast('get', self.GET_ORDER_BOOK_URLS, query_string, timeout)
 
     def get_recent_trades(self, **params) -> Dict:
@@ -1190,7 +1189,7 @@ class Client(BaseClient):
         """
         return self._post('order', True, data=params)
 
-    def create_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = REQUEST_TIMEOUT):
+    def create_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         return self._other_signed_fast('post', self.create_order_url, request_body, timeout)
 
     def create_oco_order(self, **params):
@@ -4698,7 +4697,6 @@ class AsyncClient(BaseClient):
 
         self.loop = loop or asyncio.get_event_loop()
         super().__init__(api_key, api_secret, timestamp_offset, requests_params, tld)
-        self.REQUEST_TIMEOUT = BaseClient.REQUEST_TIMEOUT
 
     @classmethod
     async def create(cls, api_key='', api_secret='', timestamp_offset=0, requests_params=None, tld='com', loop=None):
@@ -4725,19 +4723,19 @@ class AsyncClient(BaseClient):
             self.response = response
             return await self._handle_response(response)
 
-    async def _request_fast(self, method, uri: str, query_string: str, timeout: float = REQUEST_TIMEOUT):
+    async def _request_fast(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         async with getattr(self.session, method)(uri, params=query_string, timeout=timeout) as response:
             self.response = response
             return self._handle_response(self.response)
 
-    async def _get_signed_fast(self, uri: str, query_string: str, timeout: float = REQUEST_TIMEOUT):
+    async def _get_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         query_string += '&timestamp=%0.0f' % (time.time() * 1000 + self.timestamp_offset)
         m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
         async with self.session.get(uri, params='%s&signature=%s' % (query_string, m.hexdigest()), timeout=timeout) as response:
             self.response = response
             return self._handle_response(self.response)
 
-    async def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = REQUEST_TIMEOUT):
+    async def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         request_body.append(('timestamp', '%0.0f' % (time.time() * 1000 + self.timestamp_offset)))
         query_string = '&'.join('%s=%s' % (data[0], data[1]) for data in request_body)
         m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
@@ -4822,7 +4820,7 @@ class AsyncClient(BaseClient):
 
     ping.__doc__ = Client.ping.__doc__
 
-    async def ping_fast(self, timeout: float = REQUEST_TIMEOUT) -> Dict:
+    async def ping_fast(self, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
         return await self._request_fast('get', self.ping_url, '', timeout)
 
     async def get_server_time(self) -> Dict:
@@ -4830,7 +4828,7 @@ class AsyncClient(BaseClient):
 
     get_server_time.__doc__ = Client.get_server_time.__doc__
 
-    async def get_server_time_fast(self, timeout: float = REQUEST_TIMEOUT) -> Dict:
+    async def get_server_time_fast(self, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
         return await self._request_fast('get', self.get_server_time_url, '', timeout)
 
     # Market Data Endpoints
@@ -4850,7 +4848,7 @@ class AsyncClient(BaseClient):
 
     get_order_book.__doc__ = Client.get_order_book.__doc__
 
-    async def get_order_book_fast(self, query_string: str, timeout: float = self.REQUEST_TIMEOUT) -> Dict:
+    async def get_order_book_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
         return await self._request_fast('get', self.GET_ORDER_BOOK_URLS, query_string, timeout)
 
     async def get_recent_trades(self, **params) -> Dict:
