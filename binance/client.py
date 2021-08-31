@@ -101,23 +101,23 @@ class BaseClient:
             total_elapseds[params.url] += time.monotonic()
             request_starts[params.url] = False
 
+        async def add_ping_time(session, url):
+            try:
+                await session.get(url, timeout=timeout)
+            except asyncio.TimeoutError:
+                if request_starts[URL(url)]:
+                    total_elapseds[URL(url)] += time.monotonic()
+                    request_starts[URL(url)] = False
+                else:
+                    total_elapseds[URL(url)] += timeout
+
         trace_config = aiohttp.TraceConfig()
         trace_config.on_request_start.append(on_request_start)
         trace_config.on_request_end.append(on_request_end)
 
         async with aiohttp.ClientSession(trace_configs=[trace_config]) as client_session:
-            async def add_ping_time(url):
-                try:
-                    await client_session.get(url, timeout=timeout)
-                except asyncio.TimeoutError:
-                    if request_starts[URL(url)]:
-                        total_elapseds[URL(url)] += time.monotonic()
-                        request_starts[URL(url)] = False
-                    else:
-                        total_elapseds[URL(url)] += timeout
-
             for _ in range(n_sample):
-                tasks = [add_ping_time(url) for url in self.PING_URLS]
+                tasks = [add_ping_time(client_session, url) for url in self.PING_URLS]
                 await asyncio.gather(*tasks)
 
         min_elapsed = total_elapseds[URL(self.PING_URLS[self.N_BASE_API_URLS - 1])]
