@@ -550,7 +550,7 @@ class Client(BaseClient):
         return self._get('depth', data=params)
 
     def get_order_book_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
-        return self._request_fast('get', self.GET_ORDER_BOOK_URLS, query_string, timeout)
+        return self._request_fast('get', self.get_order_book_url, query_string, timeout)
 
     def get_recent_trades(self, **params) -> Dict:
         """Get recent trades (up to last 500).
@@ -4726,14 +4726,14 @@ class AsyncClient(BaseClient):
     async def _request_fast(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         async with getattr(self.session, method)(uri, params=query_string, timeout=timeout) as response:
             self.response = response
-            return self._handle_response(self.response)
+            return await self._handle_response(self.response)
 
     async def _get_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         query_string += '&timestamp=%0.0f' % (time.time() * 1000 + self.timestamp_offset)
         m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
         async with self.session.get(uri, params='%s&signature=%s' % (query_string, m.hexdigest()), timeout=timeout) as response:
             self.response = response
-            return self._handle_response(self.response)
+            return await self._handle_response(self.response)
 
     async def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         request_body.append(('timestamp', '%0.0f' % (time.time() * 1000 + self.timestamp_offset)))
@@ -4742,7 +4742,7 @@ class AsyncClient(BaseClient):
         request_body.append(('signature', m.hexdigest()))
         async with getattr(self.session, method)(uri, data=request_body, timeout=timeout) as response:
             self.response = response
-            return self._handle_response(self.response)
+            return await self._handle_response(self.response)
 
     async def _handle_response(self, response: aiohttp.ClientResponse):
         """Internal helper for handling API responses from the Binance server.
@@ -4849,7 +4849,7 @@ class AsyncClient(BaseClient):
     get_order_book.__doc__ = Client.get_order_book.__doc__
 
     async def get_order_book_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
-        return await self._request_fast('get', self.GET_ORDER_BOOK_URLS, query_string, timeout)
+        return await self._request_fast('get', self.get_order_book_url, query_string, timeout)
 
     async def get_recent_trades(self, **params) -> Dict:
         return await self._get('trades', data=params)
