@@ -59,17 +59,21 @@ class BaseClient:
         self.timestamp_offset = timestamp_offset
 
         self.N_BASE_API_URLS = len(self.BASE_API_URLS)
-        self.PING_URLS = [base_url + '/api/v3/ping' for base_url in self.BASE_API_URLS]
-        self.GET_SERVER_TIME_URLS = [base_url + '/api/v3/time' for base_url in self.BASE_API_URLS]
-        self.GET_ORDER_BOOK_URLS = [base_url + '/api/v3/depth' for base_url in self.BASE_API_URLS]
-        self.CREATE_ORDER_URLS = [base_url + '/api/v3/order' for base_url in self.BASE_API_URLS]
+        self.PING_URLS = [f'{base_url}/api/v3/ping' for base_url in self.BASE_API_URLS]
+        self.GET_SERVER_TIME_URLS = [f'{base_url}/api/v3/time' for base_url in self.BASE_API_URLS]
+        self.GET_ORDER_BOOK_URLS = [f'{base_url}/api/v3/depth' for base_url in self.BASE_API_URLS]
+        self.GET_AGGREGATE_TRADES_URLS = [f'{base_url}/api/v3/aggTrades' for base_url in self.BASE_API_URLS]
+        self.CREATE_ORDER_URLS = [f'{base_url}/api/v3/order' for base_url in self.BASE_API_URLS]
+        self.GET_MY_TRADES_URLS = [f'{base_url}/api/v3/myTrades' for base_url in self.BASE_API_URLS]
 
         self.base_api_url_location = 0
         self.base_api_url = self.BASE_API_URLS[0]
         self.ping_url = self.PING_URLS[0]
         self.get_server_time_url = self.GET_SERVER_TIME_URLS[0]
         self.get_order_book_url = self.GET_ORDER_BOOK_URLS[0]
+        self.get_aggregate_trades_url = self.GET_AGGREGATE_TRADES_URLS[0]
         self.create_order_url = self.CREATE_ORDER_URLS[0]
+        self.get_my_trades_url = self.GET_MY_TRADES_URLS[0]
 
     def get_best_location(self, n_sample: int, timeout: float = REQUEST_TIMEOUT) -> int:
         total_elapseds = {i: 0 for i in range(self.N_BASE_API_URLS)}
@@ -135,10 +139,12 @@ class BaseClient:
             self.ping_url = self.PING_URLS[location]
             self.get_server_time_url = self.GET_SERVER_TIME_URLS[location]
             self.get_order_book_url = self.GET_ORDER_BOOK_URLS[location]
+            self.get_aggregate_trades_url = self.GET_AGGREGATE_TRADES_URLS[location]
             self.create_order_url = self.CREATE_ORDER_URLS[location]
+            self.get_my_trades_url = self.GET_MY_TRADES_URLS[location]
 
-            self.API_URL = self.base_api_url + '/api'
-            self.MARGIN_API_URL = self.base_api_url + '/sapi'
+            self.API_URL = f'{self.base_api_url}/api'
+            self.MARGIN_API_URL = f'{self.base_api_url}/sapi'
             return True
         else:
             return False
@@ -234,7 +240,7 @@ class BaseClient:
 
         # if get request assign data array to params value for requests lib
         if data and (method == 'get' or force_params):
-            kwargs['params'] = '&'.join('%s=%s' % (data[0], data[1]) for data in kwargs['data'])
+            kwargs['params'] = '&'.join(f'{data[0]}={data[1]}' for data in kwargs['data'])
             del (kwargs['data'])
 
         return kwargs
@@ -264,14 +270,17 @@ class Client(BaseClient):
         return self._handle_response(self.response)
 
     def _get_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
-        query_string += '&timestamp=%0.0f' % (time.time() * 1000 + self.timestamp_offset)
+        if query_string:
+            query_string += f'&timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        else:
+            query_string = f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
         m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
-        self.response = self.session.get(uri, params='%s&signature=%s' % (query_string, m.hexdigest()), timeout=timeout)
+        self.response = self.session.get(uri, params=f'{query_string}&signature={m.hexdigest()}', timeout=timeout)
         return self._handle_response(self.response)
 
     def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        request_body.append(('timestamp', '%0.0f' % (time.time() * 1000 + self.timestamp_offset)))
-        query_string = '&'.join('%s=%s' % (data[0], data[1]) for data in request_body)
+        request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
+        query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
         m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
         request_body.append(('signature', m.hexdigest()))
         self.response = getattr(self.session, method)(uri, data=request_body, timeout=timeout)
@@ -288,7 +297,7 @@ class Client(BaseClient):
         try:
             return response.json()
         except ValueError:
-            raise BinanceRequestException('Invalid Response: %s' % response.text)
+            raise BinanceRequestException(f'Invalid Response: {response.text}')
 
     def _request_api(self, method, path: str, signed: bool = False, version=None, **kwargs):
         uri = self._create_api_uri(path, signed, version)
@@ -631,6 +640,9 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
         """
         return self._get('aggTrades', data=params)
+
+    def get_aggregate_trades_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return self._request_fast('get', self.get_aggregate_trades_url, query_string, timeout)
 
     def aggregate_trade_iter(self, symbol: str, start_str=None, last_id=None):
         """Iterate over aggregate trade data from (start_time or last_id) to
@@ -4729,15 +4741,18 @@ class AsyncClient(BaseClient):
             return await self._handle_response(self.response)
 
     async def _get_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
-        query_string += '&timestamp=%0.0f' % (time.time() * 1000 + self.timestamp_offset)
+        if query_string:
+            query_string += f'&timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        else:
+            query_string = f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
         m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
-        async with self.session.get(uri, params='%s&signature=%s' % (query_string, m.hexdigest()), timeout=timeout) as response:
+        async with self.session.get(uri, params=f'{query_string}&signature={m.hexdigest()}', timeout=timeout) as response:
             self.response = response
             return await self._handle_response(self.response)
 
     async def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        request_body.append(('timestamp', '%0.0f' % (time.time() * 1000 + self.timestamp_offset)))
-        query_string = '&'.join('%s=%s' % (data[0], data[1]) for data in request_body)
+        request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
+        query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
         m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
         request_body.append(('signature', m.hexdigest()))
         async with getattr(self.session, method)(uri, data=request_body, timeout=timeout) as response:
@@ -4865,6 +4880,9 @@ class AsyncClient(BaseClient):
         return await self._get('aggTrades', data=params)
 
     get_aggregate_trades.__doc__ = Client.get_aggregate_trades.__doc__
+
+    async def get_aggregate_trades_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return await self._request_fast('get', self.get_aggregate_trades_url, query_string, timeout)
 
     async def aggregate_trade_iter(self, symbol, start_str=None, last_id=None):
         if start_str is not None and last_id is not None:
@@ -5182,6 +5200,9 @@ class AsyncClient(BaseClient):
         return await self._get('myTrades', True, data=params)
 
     get_my_trades.__doc__ = Client.get_my_trades.__doc__
+
+    async def get_my_trades_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._get_signed_fast(self.get_my_trades_url, query_string, timeout)
 
     async def get_system_status(self):
         return await self._request_margin_api('get', 'system/status')
