@@ -59,21 +59,27 @@ class BaseClient:
         self.timestamp_offset = timestamp_offset
 
         self.N_BASE_API_URLS = len(self.BASE_API_URLS)
+        self.GET_EXCHANGE_INFO_URLS = [f'{base_url}/api/v3/exchangeInfo' for base_url in self.BASE_API_URLS]
         self.PING_URLS = [f'{base_url}/api/v3/ping' for base_url in self.BASE_API_URLS]
         self.GET_SERVER_TIME_URLS = [f'{base_url}/api/v3/time' for base_url in self.BASE_API_URLS]
         self.GET_ORDER_BOOK_URLS = [f'{base_url}/api/v3/depth' for base_url in self.BASE_API_URLS]
         self.GET_AGGREGATE_TRADES_URLS = [f'{base_url}/api/v3/aggTrades' for base_url in self.BASE_API_URLS]
-        self.CREATE_ORDER_URLS = [f'{base_url}/api/v3/order' for base_url in self.BASE_API_URLS]
+        self.ORDER_URLS = [f'{base_url}/api/v3/order' for base_url in self.BASE_API_URLS]
+        self.OPEN_ORDERS_URLS = [f'{base_url}/api/v3/openOrders' for base_url in self.BASE_API_URLS]
         self.GET_MY_TRADES_URLS = [f'{base_url}/api/v3/myTrades' for base_url in self.BASE_API_URLS]
+        self.CREATE_MARGIN_ORDER_URLS = [f'{base_url}/sapi/v1/margin/order' for base_url in self.BASE_API_URLS]
 
         self.base_api_url_location = 0
         self.base_api_url = self.BASE_API_URLS[0]
+        self.get_exchange_info_url = self.GET_EXCHANGE_INFO_URLS[0]
         self.ping_url = self.PING_URLS[0]
         self.get_server_time_url = self.GET_SERVER_TIME_URLS[0]
         self.get_order_book_url = self.GET_ORDER_BOOK_URLS[0]
         self.get_aggregate_trades_url = self.GET_AGGREGATE_TRADES_URLS[0]
-        self.create_order_url = self.CREATE_ORDER_URLS[0]
+        self.order_url = self.ORDER_URLS[0]
+        self.open_orders_url = self.OPEN_ORDERS_URLS[0]
         self.get_my_trades_url = self.GET_MY_TRADES_URLS[0]
+        self.create_margin_order_url = self.CREATE_MARGIN_ORDER_URLS[0]
 
     def get_best_location(self, n_sample: int, timeout: float = REQUEST_TIMEOUT) -> int:
         total_elapseds = {i: 0 for i in range(self.N_BASE_API_URLS)}
@@ -136,12 +142,15 @@ class BaseClient:
         if location != self.base_api_url_location:
             self.base_api_url_location = location
             self.base_api_url = self.BASE_API_URLS[location]
+            self.get_exchange_info_url = self.GET_EXCHANGE_INFO_URLS[location]
             self.ping_url = self.PING_URLS[location]
             self.get_server_time_url = self.GET_SERVER_TIME_URLS[location]
             self.get_order_book_url = self.GET_ORDER_BOOK_URLS[location]
             self.get_aggregate_trades_url = self.GET_AGGREGATE_TRADES_URLS[location]
-            self.create_order_url = self.CREATE_ORDER_URLS[location]
+            self.order_url = self.ORDER_URLS[location]
+            self.open_orders_url = self.OPEN_ORDERS_URLS[location]
             self.get_my_trades_url = self.GET_MY_TRADES_URLS[location]
+            self.create_margin_order_url = self.CREATE_MARGIN_ORDER_URLS[location]
 
             self.API_URL = f'{self.base_api_url}/api'
             self.MARGIN_API_URL = f'{self.base_api_url}/sapi'
@@ -401,6 +410,9 @@ class Client(BaseClient):
         """
 
         return self._get('exchangeInfo')
+
+    def get_exchange_info_fast(self, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return self._request_fast('get', self.get_exchange_info_url, '', timeout)
 
     def get_symbol_info(self, symbol) -> Optional[Dict]:
         """Return information about a symbol
@@ -1202,7 +1214,7 @@ class Client(BaseClient):
         return self._post('order', True, data=params)
 
     def create_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return self._other_signed_fast('post', self.create_order_url, request_body, timeout)
+        return self._other_signed_fast('post', self.order_url, request_body, timeout)
 
     def create_oco_order(self, **params):
         """Send in a new OCO order
@@ -1377,6 +1389,9 @@ class Client(BaseClient):
         """
         return self._delete('order', True, data=params)
 
+    def cancel_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._other_signed_fast('delete', self.order_url, request_body, timeout)
+
     def get_open_orders(self, **params):
         """Get all open orders on a symbol.
         https://binance-docs.github.io/apidocs/spot/en/#current-open-orders-user_data
@@ -1406,6 +1421,9 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
         """
         return self._get('openOrders', True, data=params)
+
+    def get_open_orders_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._get_signed_fast(self.open_orders_url, query_string, timeout)
 
     def cancel_oco(self, **params):
         """Cancel an entire Order List
@@ -1726,6 +1744,9 @@ class Client(BaseClient):
         """
         return self._delete('openOrders', True, data=params)
 
+    def cancel_orders_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._other_signed_fast('delete', self.open_orders_url, request_body, timeout)
+
     # User Stream Endpoints
     def get_account(self, **params):
         """Get current account information.
@@ -1815,6 +1836,9 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
         """
         return self._get('myTrades', True, data=params)
+
+    def get_my_trades_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._get_signed_fast(self.get_my_trades_url, query_string, timeout)
 
     def get_system_status(self):
         """Get system status detail.
@@ -2950,6 +2974,9 @@ class Client(BaseClient):
             BinanceOrderInactiveSymbolException
         """
         return self._request_margin_api('post', 'margin/order', signed=True, data=params)
+
+    def create_margin_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return self._other_signed_fast('post', self.create_margin_order_url, request_body, timeout)
 
     def cancel_margin_order(self, **params) -> Dict:
         """Cancel an active order for margin account.
@@ -4817,6 +4844,9 @@ class AsyncClient(BaseClient):
 
     get_exchange_info.__doc__ = Client.get_exchange_info.__doc__
 
+    async def get_exchange_info_fast(self, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return await self._request_fast('get', self.get_exchange_info_url, '', timeout)
+
     async def get_symbol_info(self, symbol) -> Optional[Dict]:
         res = await self.get_exchange_info()
 
@@ -5124,6 +5154,9 @@ class AsyncClient(BaseClient):
 
     create_order.__doc__ = Client.create_order.__doc__
 
+    async def create_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._other_signed_fast('post', self.order_url, request_body, timeout)
+
     async def create_oco_order(self, **params):
         return await self._post('order/oco', True, data=params)
 
@@ -5149,10 +5182,16 @@ class AsyncClient(BaseClient):
 
     cancel_order.__doc__ = Client.cancel_order.__doc__
 
+    async def cancel_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._other_signed_fast('delete', self.order_url, request_body, timeout)
+
     async def get_open_orders(self, **params):
         return await self._get('openOrders', True, data=params)
 
     get_open_orders.__doc__ = Client.get_open_orders.__doc__
+
+    async def get_open_orders_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._get_signed_fast(self.open_orders_url, query_string, timeout)
 
     async def cancel_oco(self, **params):
         return await self._delete('orderList', True, data=params)
@@ -5178,6 +5217,9 @@ class AsyncClient(BaseClient):
         return await self._delete('openOrders', True, data=params)
 
     cancel_orders.__doc__ = Client.cancel_orders.__doc__
+
+    async def cancel_orders_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._other_signed_fast('delete', self.open_orders_url, request_body, timeout)
 
     # User Stream Endpoints
     async def get_account(self, **params):
@@ -5342,6 +5384,9 @@ class AsyncClient(BaseClient):
 
     async def create_margin_order(self, **params):
         return await self._request_margin_api('post', 'margin/order', signed=True, data=params)
+
+    async def create_margin_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._other_signed_fast('post', self.create_margin_order_url, request_body, timeout)
 
     async def cancel_margin_order(self, **params):
         return await self._request_margin_api('delete', 'margin/order', signed=True, data=params)
