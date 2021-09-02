@@ -64,8 +64,13 @@ class BaseClient:
         self.GET_SERVER_TIME_URLS = [f'{base_url}/api/v3/time' for base_url in self.BASE_API_URLS]
         self.GET_ORDER_BOOK_URLS = [f'{base_url}/api/v3/depth' for base_url in self.BASE_API_URLS]
         self.GET_AGGREGATE_TRADES_URLS = [f'{base_url}/api/v3/aggTrades' for base_url in self.BASE_API_URLS]
-        self.ORDER_URLS = [f'{base_url}/api/v3/order' for base_url in self.BASE_API_URLS]
-        self.OPEN_ORDERS_URLS = [f'{base_url}/api/v3/openOrders' for base_url in self.BASE_API_URLS]
+        self.GET_AVG_PRICE_URLS = [f'{base_url}/api/v3/avgPrice' for base_url in self.BASE_API_URLS]
+        self.GET_TICKER_URLS = [f'{base_url}/api/v3/ticker/24hr' for base_url in self.BASE_API_URLS]
+        self.GET_ORDERBOOL_TICKER_URLS = [f'{base_url}/api/v3/ticker/bookTicker' for base_url in self.BASE_API_URLS]
+        self.GET_ORDER_URLS = [f'{base_url}/api/v3/order' for base_url in self.BASE_API_URLS]
+        self.GET_ALL_ORDERS_URLS = [f'{base_url}/api/v3/allOrders' for base_url in self.BASE_API_URLS]
+        self.GET_OPEN_ORDERS_URLS = [f'{base_url}/api/v3/openOrders' for base_url in self.BASE_API_URLS]
+        self.GET_ACCOUNT_URLS = [f'{base_url}/api/v3/account' for base_url in self.BASE_API_URLS]
         self.GET_MY_TRADES_URLS = [f'{base_url}/api/v3/myTrades' for base_url in self.BASE_API_URLS]
         self.CREATE_MARGIN_ORDER_URLS = [f'{base_url}/sapi/v1/margin/order' for base_url in self.BASE_API_URLS]
 
@@ -76,8 +81,17 @@ class BaseClient:
         self.get_server_time_url = self.GET_SERVER_TIME_URLS[0]
         self.get_order_book_url = self.GET_ORDER_BOOK_URLS[0]
         self.get_aggregate_trades_url = self.GET_AGGREGATE_TRADES_URLS[0]
-        self.order_url = self.ORDER_URLS[0]
-        self.open_orders_url = self.OPEN_ORDERS_URLS[0]
+        self.get_avg_price_url = self.GET_AVG_PRICE_URLS[0]
+        self.get_ticker_url = self.GET_TICKER_URLS[0]
+        self.get_orderbook_ticker_url = self.GET_ORDERBOOL_TICKER_URLS[0]
+        self.get_orderbook_tickers_url = self.get_orderbook_ticker_url
+        self.get_order_url = self.GET_ORDER_URLS[0]
+        self.create_order_url = self.get_order_url
+        self.cancel_order_url = self.get_order_url
+        self.get_all_orders_url = self.GET_ALL_ORDERS_URLS[0]
+        self.get_open_orders_url = self.GET_OPEN_ORDERS_URLS[0]
+        self.cancel_orders_url = self.get_open_orders_url
+        self.get_account_url = self.GET_ACCOUNT_URLS[0]
         self.get_my_trades_url = self.GET_MY_TRADES_URLS[0]
         self.create_margin_order_url = self.CREATE_MARGIN_ORDER_URLS[0]
 
@@ -147,8 +161,17 @@ class BaseClient:
             self.get_server_time_url = self.GET_SERVER_TIME_URLS[location]
             self.get_order_book_url = self.GET_ORDER_BOOK_URLS[location]
             self.get_aggregate_trades_url = self.GET_AGGREGATE_TRADES_URLS[location]
-            self.order_url = self.ORDER_URLS[location]
-            self.open_orders_url = self.OPEN_ORDERS_URLS[location]
+            self.get_avg_price_url = self.GET_AVG_PRICE_URLS[location]
+            self.get_ticker_url = self.GET_TICKER_URLS[location]
+            self.get_orderbook_ticker_url = self.GET_ORDERBOOL_TICKER_URLS[location]
+            self.get_orderbook_tickers_url = self.get_orderbook_ticker_url
+            self.get_order_url = self.GET_ORDER_URLS[location]
+            self.create_order_url = self.get_order_url
+            self.cancel_order_url = self.get_order_url
+            self.get_all_orders_url = self.GET_ALL_ORDERS_URLS[location]
+            self.get_open_orders_url = self.GET_OPEN_ORDERS_URLS[location]
+            self.cancel_orders_url = self.get_open_orders_url
+            self.get_account_url = self.GET_ACCOUNT_URLS[location]
             self.get_my_trades_url = self.GET_MY_TRADES_URLS[location]
             self.create_margin_order_url = self.CREATE_MARGIN_ORDER_URLS[location]
 
@@ -414,7 +437,7 @@ class Client(BaseClient):
     def get_exchange_info_fast(self, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
         return self._request_fast('get', self.get_exchange_info_url, '', timeout)
 
-    def get_symbol_info(self, symbol) -> Optional[Dict]:
+    def get_symbol_info(self, symbol) -> Dict:
         """Return information about a symbol
         :param symbol: required e.g BNBBTC
         :type symbol: str
@@ -452,10 +475,19 @@ class Client(BaseClient):
         res = self.get_exchange_info()
 
         for item in res['symbols']:
-            if item['symbol'] == symbol.upper():
+            if item['symbol'] == symbol:
                 return item
 
-        return None
+        return {}
+
+    def get_symbol_info_fast(self, symbol: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        res = self.get_exchange_info_fast(timeout)
+
+        for item in res['symbols']:
+            if item['symbol'] == symbol:
+                return item
+
+        return {}
 
     # General Endpoints
 
@@ -539,6 +571,9 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
         """
         return self._get('ticker/bookTicker')
+
+    def get_orderbook_tickers_fast(self, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._request_fast('get', self.get_orderbook_tickers_url, '', timeout)
 
     def get_order_book(self, **params) -> Dict:
         """Get the Order Book for the market
@@ -995,6 +1030,9 @@ class Client(BaseClient):
         """
         return self._get('avgPrice', data=params, version=self.PRIVATE_API_VERSION)
 
+    def get_avg_price_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return self._request_fast('get', self.get_avg_price_url, query_string, timeout)
+
     def get_ticker(self, **params):
         """24 hour price change statistics.
         https://binance-docs.github.io/apidocs/spot/en/#24hr-ticker-price-change-statistics
@@ -1045,6 +1083,9 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
         """
         return self._get('ticker/24hr', data=params)
+
+    def get_ticker_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._request_fast('get', self.get_ticker_url, query_string, timeout)
 
     def get_symbol_ticker(self, **params):
         """Latest price for a symbol or symbols.
@@ -1108,6 +1149,9 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
         """
         return self._get('ticker/bookTicker', data=params)
+
+    def get_orderbook_ticker_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._request_fast('get', self.get_orderbook_ticker_url, query_string, timeout)
 
     # Account Endpoints
 
@@ -1214,7 +1258,7 @@ class Client(BaseClient):
         return self._post('order', True, data=params)
 
     def create_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return self._other_signed_fast('post', self.order_url, request_body, timeout)
+        return self._other_signed_fast('post', self.create_order_url, request_body, timeout)
 
     def create_oco_order(self, **params):
         """Send in a new OCO order
@@ -1326,6 +1370,9 @@ class Client(BaseClient):
         """
         return self._get('order', True, data=params)
 
+    def get_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._get_signed_fast(self.get_order_url, query_string, timeout)
+
     def get_all_orders(self, **params):
         """Get all account orders; active, canceled, or filled.
         https://binance-docs.github.io/apidocs/spot/en/#all-orders-user_data
@@ -1364,6 +1411,9 @@ class Client(BaseClient):
         """
         return self._get('allOrders', True, data=params)
 
+    def get_all_orders_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._get_signed_fast(self.get_all_orders_url, query_string, timeout)
+
     def cancel_order(self, **params):
         """Cancel an active order. Either orderId or origClientOrderId must be sent.
         https://binance-docs.github.io/apidocs/spot/en/#cancel-order-trade
@@ -1390,7 +1440,7 @@ class Client(BaseClient):
         return self._delete('order', True, data=params)
 
     def cancel_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return self._other_signed_fast('delete', self.order_url, request_body, timeout)
+        return self._other_signed_fast('delete', self.cancel_order_url, request_body, timeout)
 
     def get_open_orders(self, **params):
         """Get all open orders on a symbol.
@@ -1423,7 +1473,7 @@ class Client(BaseClient):
         return self._get('openOrders', True, data=params)
 
     def get_open_orders_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return self._get_signed_fast(self.open_orders_url, query_string, timeout)
+        return self._get_signed_fast(self.get_open_orders_url, query_string, timeout)
 
     def cancel_oco(self, **params):
         """Cancel an entire Order List
@@ -1745,7 +1795,7 @@ class Client(BaseClient):
         return self._delete('openOrders', True, data=params)
 
     def cancel_orders_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return self._other_signed_fast('delete', self.open_orders_url, request_body, timeout)
+        return self._other_signed_fast('delete', self.cancel_orders_url, request_body, timeout)
 
     # User Stream Endpoints
     def get_account(self, **params):
@@ -1779,6 +1829,9 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
         """
         return self._get('account', True, data=params)
+
+    def get_account_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._get_signed_fast(self.get_account_url, query_string, timeout)
 
     def get_asset_balance(self, asset, **params):
         """Get current asset balance.
@@ -4847,16 +4900,25 @@ class AsyncClient(BaseClient):
     async def get_exchange_info_fast(self, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
         return await self._request_fast('get', self.get_exchange_info_url, '', timeout)
 
-    async def get_symbol_info(self, symbol) -> Optional[Dict]:
+    async def get_symbol_info(self, symbol: str) -> Dict:
         res = await self.get_exchange_info()
 
         for item in res['symbols']:
-            if item['symbol'] == symbol.upper():
+            if item['symbol'] == symbol:
                 return item
 
-        return None
+        return {}
 
     get_symbol_info.__doc__ = Client.get_symbol_info.__doc__
+
+    async def get_symbol_info_fast(self, symbol: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        res = await self.get_exchange_info_fast(timeout)
+
+        for item in res['symbols']:
+            if item['symbol'] == symbol:
+                return item
+
+        return {}
 
     # General Endpoints
 
@@ -4887,6 +4949,9 @@ class AsyncClient(BaseClient):
         return await self._get('ticker/bookTicker')
 
     get_orderbook_tickers.__doc__ = Client.get_orderbook_tickers.__doc__
+
+    async def get_orderbook_tickers_fast(self, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._request_fast('get', self.get_orderbook_tickers_url, '', timeout)
 
     async def get_order_book(self, **params) -> Dict:
         return await self._get('depth', data=params)
@@ -5132,10 +5197,16 @@ class AsyncClient(BaseClient):
 
     get_avg_price.__doc__ = Client.get_avg_price.__doc__
 
+    async def get_avg_price_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return await self._request_fast('get', self.get_avg_price_url, query_string, timeout)
+
     async def get_ticker(self, **params):
         return await self._get('ticker/24hr', data=params)
 
     get_ticker.__doc__ = Client.get_ticker.__doc__
+
+    async def get_ticker_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._request_fast('get', self.get_ticker_url, query_string, timeout)
 
     async def get_symbol_ticker(self, **params):
         return await self._get('ticker/price', data=params, version=self.PRIVATE_API_VERSION)
@@ -5147,6 +5218,9 @@ class AsyncClient(BaseClient):
 
     get_orderbook_ticker.__doc__ = Client.get_orderbook_ticker.__doc__
 
+    async def get_orderbook_ticker_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._request_fast('get', self.get_orderbook_ticker_url, query_string, timeout)
+
     # Account Endpoints
 
     async def create_order(self, **params):
@@ -5155,7 +5229,7 @@ class AsyncClient(BaseClient):
     create_order.__doc__ = Client.create_order.__doc__
 
     async def create_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return await self._other_signed_fast('post', self.order_url, request_body, timeout)
+        return await self._other_signed_fast('post', self.create_order_url, request_body, timeout)
 
     async def create_oco_order(self, **params):
         return await self._post('order/oco', True, data=params)
@@ -5172,10 +5246,16 @@ class AsyncClient(BaseClient):
 
     get_order.__doc__ = Client.get_order.__doc__
 
+    async def get_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._get_signed_fast(self.get_order_url, query_string, timeout)
+
     async def get_all_orders(self, **params):
         return await self._get('allOrders', True, data=params)
 
     get_all_orders.__doc__ = Client.get_all_orders.__doc__
+
+    async def get_all_orders_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._get_signed_fast(self.get_all_orders_url, query_string, timeout)
 
     async def cancel_order(self, **params):
         return await self._delete('order', True, data=params)
@@ -5183,7 +5263,7 @@ class AsyncClient(BaseClient):
     cancel_order.__doc__ = Client.cancel_order.__doc__
 
     async def cancel_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return await self._other_signed_fast('delete', self.order_url, request_body, timeout)
+        return await self._other_signed_fast('delete', self.cancel_order_url, request_body, timeout)
 
     async def get_open_orders(self, **params):
         return await self._get('openOrders', True, data=params)
@@ -5191,7 +5271,7 @@ class AsyncClient(BaseClient):
     get_open_orders.__doc__ = Client.get_open_orders.__doc__
 
     async def get_open_orders_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return await self._get_signed_fast(self.open_orders_url, query_string, timeout)
+        return await self._get_signed_fast(self.get_open_orders_url, query_string, timeout)
 
     async def cancel_oco(self, **params):
         return await self._delete('orderList', True, data=params)
@@ -5219,13 +5299,16 @@ class AsyncClient(BaseClient):
     cancel_orders.__doc__ = Client.cancel_orders.__doc__
 
     async def cancel_orders_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return await self._other_signed_fast('delete', self.open_orders_url, request_body, timeout)
+        return await self._other_signed_fast('delete', self.cancel_orders_url, request_body, timeout)
 
     # User Stream Endpoints
     async def get_account(self, **params):
         return await self._get('account', True, data=params)
 
     get_account.__doc__ = Client.get_account.__doc__
+
+    async def get_account_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._get_signed_fast(self.get_account_url, query_string, timeout)
 
     async def get_asset_balance(self, asset, **params):
         res = await self.get_account(**params)
