@@ -33,7 +33,7 @@ class BaseClient:
     FUTURES_API_VERSION = 'v1'
     FUTURES_COIN_API_VERSION = 'v1'
 
-    REQUEST_TIMEOUT: float = 10
+    REQUEST_TIMEOUT: float = 5
 
     def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: int = 0, requests_params: Dict = {}, tld='com'):
         """Binance API Client constructor
@@ -283,7 +283,7 @@ class Client(BaseClient):
     def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: int = 0, requests_params: Dict = {}):
         super().__init__(api_key, api_secret, timestamp_offset, requests_params)
         # init DNS and SSL cert
-        self.ping()
+        self.ping_fast()
         self.reset_timestamp_offset()
 
     def _init_session(self) -> requests.Session:
