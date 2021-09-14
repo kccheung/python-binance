@@ -5,9 +5,11 @@ import logging
 import time
 from enum import Enum
 from random import random
+from socket import gaierror
 from typing import Optional, List, Dict, Callable, Any
 
 import websockets as ws
+from websockets.exceptions import ConnectionClosedError
 
 from .client import AsyncClient
 from .exceptions import BinanceWebsocketUnableToConnect
@@ -54,6 +56,9 @@ class ReconnectingWebsocket:
         self.ws: Optional[ws.WebSocketClientProtocol] = None
         self.ws_state = WSListenerState.INITIALISING
         self._queue = asyncio.Queue(loop=self._loop)
+        self._handle_read_loop = None
+        self._read_loop_finish = asyncio.Event(loop=self._loop)
+        self._tasks = set()
 
     async def __aenter__(self):
         await self.connect()
@@ -65,26 +70,34 @@ class ReconnectingWebsocket:
         self.ws_state = WSListenerState.EXITING
         if self.ws:
             self.ws.fail_connection()
-        if self._conn:
+        if self._conn and hasattr(self._conn, 'protocol'):
             await self._conn.__aexit__(exc_type, exc_val, exc_tb)
         self.ws = None
+        if self._tasks:
+            await asyncio.wait(self._tasks, loop=self._loop)
 
     async def connect(self):
         await self._before_connect()
         assert self._path
         ws_url = self._url + self._prefix + self._path
-        self._conn = ws.connect(ws_url, close_timeout=0.001)
+        self._conn = ws.connect(ws_url, close_timeout=0.1, ping_interval=None)
         try:
             self.ws = await self._conn.__aenter__()
         except:  # noqa
-            await self._reconnect()
+            reconnect_task = asyncio.ensure_future(self._reconnect(), loop=self._loop)
+            self._tasks.add(reconnect_task)
+            reconnect_task.add_done_callback(self._tasks.remove)
             return
         self.ws_state = WSListenerState.STREAMING
         if not self._reconnecting.is_set():
             self._reconnecting.set()
         self._reconnects = 0
         await self._after_connect()
-        self._loop.call_soon_threadsafe(asyncio.create_task, self._read_loop())
+        if self._handle_read_loop:
+            await self._read_loop_finish.wait()
+        self._handle_read_loop = self._loop.call_soon_threadsafe(asyncio.create_task, self._read_loop())
+        self._tasks.add(self._handle_read_loop)
+        self._handle_read_loop.add_done_callback(self._tasks.remove)
 
     async def _before_connect(self):
         pass
@@ -100,76 +113,51 @@ class ReconnectingWebsocket:
             return None
 
     async def _read_loop(self):
-        res = None
+        self._read_loop_finish.clear()
         while 1:
-            if not self.ws or self.ws_state != WSListenerState.STREAMING:
-                await self._wait_for_reconnect()
-                break
-            # if self.ws_state == WSListenerState.EXITING:
-            #     break
-            # if self.ws.state == ws.protocol.State.CLOSING:
-            #     break
-            # if self.ws.state == ws.protocol.State.CLOSED:
-            #     try:
-            #         await self._reconnect()
-            #     except BinanceWebsocketUnableToConnect:
-            #         return {
-            #             'e': 'error',
-            #             'm': 'Max reconnect retries reached'
-            #         }
-            #     else:
-            #         break
             try:
-                res = await asyncio.wait_for(self.ws.recv(), timeout=self.TIMEOUT)
+                if not self.ws or self.ws_state == WSListenerState.EXITING:
+                    break
+                if self.ws_state == WSListenerState.RECONNECTING:
+                    self._log.debug("reconnecting waiting for connect")
+                    await self._reconnecting.wait()
+                    break
+                elif self.ws.state == ws.protocol.State.CLOSED:
+                    reconnect_task = asyncio.ensure_future(self._reconnect(), loop=self._loop)
+                    self._tasks.add(reconnect_task)
+                    reconnect_task.add_done_callback(self._tasks.remove)
+                else:
+                    res = await asyncio.wait_for(self.ws.recv(), timeout=self.TIMEOUT)
+                    res = self._handle_message(res)
+                    if res:
+                        self._queue.put_nowait(res)
             except asyncio.TimeoutError:
                 self._log.debug(f"no message in {self.TIMEOUT} seconds")
-                continue
             except asyncio.CancelledError as e:
                 self._log.debug(f"cancelled error {e}")
                 break
             except asyncio.IncompleteReadError as e:
-                self._log.debug(f"incomplete read error {e}")
-                continue
-            except ws.ConnectionClosed as e:
-                self._log.debug('ws connection closed:{}'.format(e))
-                if self.ws_state not in {WSListenerState.EXITING, WSListenerState.RECONNECTING}:
-                    try:
-                        await self._reconnect()
-                    except BinanceWebsocketUnableToConnect:
-                        return {
-                            'e': 'error',
-                            'm': 'Max reconnect retries reached'
-                        }
+                self._log.debug(f"incomplete read error ({e})")
+            except ConnectionClosedError as e:
+                self._log.debug(f"connection close error ({e})")
+            except gaierror as e:
+                self._log.debug(f"DNS Error ({e})")
+            except BinanceWebsocketUnableToConnect as e:
+                self._log.debug(f"BinanceWebsocketUnableToConnect ({e})")
                 break
             except Exception as e:
-                self._log.debug(f"exception {e}")
-                break
-            else:
-                if self.ws_state in {WSListenerState.EXITING, WSListenerState.RECONNECTING}:
-                    break
-                res = self._handle_message(res)
-                # if self.ws_state in {WSListenerState.EXITING, WSListenerState.RECONNECTING}:
-                #     break
-
-            if res:
-                self._queue.put_nowait(res)
+                self._log.debug(f"Unknown exception ({e})")
+        self._handle_read_loop = None  # Signal the coro is stopped
+        if not self._read_loop_finish.is_set():
+            self._read_loop_finish.set()
+        self._reconnects = 0
 
     async def recv(self):
         while 1:
             try:
-                res = await asyncio.wait_for(self._queue.get(), timeout=self.TIMEOUT)
-                return res
+                return await asyncio.wait_for(self._queue.get(), timeout=self.TIMEOUT)
             except asyncio.TimeoutError:
                 self._log.debug(f"no message in {self.TIMEOUT} seconds")
-
-    async def _wait_for_reconnect(self):
-        if self.ws_state == WSListenerState.RECONNECTING:
-            self._log.debug("reconnecting waiting for connect")
-            await self._reconnecting.wait()
-        if not self.ws:
-            self._log.debug("ignore message no ws")
-        else:
-            self._log.debug(f"ignore message {self.ws_state}")
 
     def _get_reconnect_wait(self, attempts: int) -> float:
         # expo = 2 ** attempts
@@ -182,10 +170,6 @@ class ReconnectingWebsocket:
             self.ws = None
         self._reconnects += 1
 
-    def _no_message_received_reconnect(self):
-        self._log.debug('No message received, reconnecting')
-        asyncio.create_task(self._reconnect())
-
     async def _reconnect(self):
         if self.ws_state == WSListenerState.RECONNECTING:
             return
@@ -195,11 +179,13 @@ class ReconnectingWebsocket:
         if self._reconnects < self.MAX_RECONNECTS:
             reconnect_wait = self._get_reconnect_wait(self._reconnects)
             self._log.debug(
-                f"websocket reconnecting {self.MAX_RECONNECTS - self._reconnects} reconnects left - "
+                f"websocket reconnecting. {self.MAX_RECONNECTS - self._reconnects} reconnects left - "
                 f"waiting {reconnect_wait}"
             )
             await asyncio.sleep(reconnect_wait)
-            await self.connect()
+            connect_task = asyncio.ensure_future(self.connect(), loop=self._loop)
+            self._tasks.add(connect_task)
+            connect_task.add_done_callback(self._tasks.remove)
         else:
             self._log.error(f'Max reconnections {self.MAX_RECONNECTS} reached:')
             raise BinanceWebsocketUnableToConnect
@@ -328,7 +314,7 @@ class BinanceSocketManager:
                 path=path,
                 url=self._get_stream_url(stream_url),
                 prefix=prefix,
-                exit_coro=self._exit_socket,
+                exit_coro=self._stop_socket,
             )
 
         return self._conns[conn_id]
@@ -344,7 +330,7 @@ class BinanceSocketManager:
                 url=self._get_stream_url(stream_url),
                 keepalive_type=path,
                 prefix=prefix,
-                exit_coro=self._exit_socket,
+                exit_coro=self._stop_socket,
                 user_timeout=self._user_timeout
             )
 
@@ -361,9 +347,6 @@ class BinanceSocketManager:
             if self.testnet:
                 stream_url = self.DSTREAM_TESTNET_URL
         return self._get_socket(path, stream_url, prefix, socket_type=socket_type)
-
-    async def _exit_socket(self, path: str):
-        await self._stop_socket(path)
 
     def depth_socket(self, symbol: str, depth: Optional[int] = 20, interval: Optional[int] = 100):
         """Start a websocket for symbol market depth returning either a diff or a partial book
