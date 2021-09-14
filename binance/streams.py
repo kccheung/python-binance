@@ -97,7 +97,6 @@ class ReconnectingWebsocket:
             await self._read_loop_finish.wait()
         self._handle_read_loop = self._loop.call_soon_threadsafe(asyncio.create_task, self._read_loop())
         self._tasks.add(self._handle_read_loop)
-        self._handle_read_loop.add_done_callback(self._tasks.remove)
 
     async def _before_connect(self):
         pass
@@ -151,6 +150,7 @@ class ReconnectingWebsocket:
         if not self._read_loop_finish.is_set():
             self._read_loop_finish.set()
         self._reconnects = 0
+        self._tasks.remove(self)
 
     async def recv(self):
         while 1:
