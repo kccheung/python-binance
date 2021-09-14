@@ -73,6 +73,8 @@ class ReconnectingWebsocket:
         if self._conn and hasattr(self._conn, 'protocol'):
             await self._conn.__aexit__(exc_type, exc_val, exc_tb)
         self.ws = None
+        if self._handle_read_loop:
+            await self._read_loop_finish.wait()
         if self._tasks:
             await asyncio.wait(self._tasks, loop=self._loop)
 
@@ -96,7 +98,6 @@ class ReconnectingWebsocket:
         if self._handle_read_loop:
             await self._read_loop_finish.wait()
         self._handle_read_loop = self._loop.call_soon_threadsafe(asyncio.create_task, self._read_loop())
-        self._tasks.add(self._handle_read_loop)
 
     async def _before_connect(self):
         pass
@@ -150,7 +151,6 @@ class ReconnectingWebsocket:
         if not self._read_loop_finish.is_set():
             self._read_loop_finish.set()
         self._reconnects = 0
-        self._tasks.remove(self)
 
     async def recv(self):
         while 1:
