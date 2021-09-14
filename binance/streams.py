@@ -114,6 +114,7 @@ class ReconnectingWebsocket:
                     break
                 elif self.ws.state == ws.protocol.State.CLOSED:
                     asyncio.ensure_future(self._reconnect(), loop=self._loop)
+                    break
                 else:
                     res = await asyncio.wait_for(self.ws.recv(), timeout=self.TIMEOUT)
                     res = self._handle_message(res)
@@ -136,7 +137,6 @@ class ReconnectingWebsocket:
             except Exception as e:
                 self._log.debug(f"Unknown exception ({e})")
         self._handle_read_loop = None  # Signal the coro is stopped
-        self._reconnects = 0
         if not self._read_loop_finish.is_set():
             self._read_loop_finish.set()
 
