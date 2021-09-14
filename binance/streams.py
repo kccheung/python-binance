@@ -21,6 +21,7 @@ KEEPALIVE_TIMEOUT = 5 * 60  # 5 minutes
 
 class WSListenerState(Enum):
     INITIALISING = 'I'
+    CONNECTING = 'C'
     STREAMING = 'S'
     RECONNECTING = 'R'
     EXITING = 'E'
@@ -50,7 +51,6 @@ class ReconnectingWebsocket:
         self._exit_coro = exit_coro
         self._prefix = prefix
         self._reconnects = 0
-        self._reconnecting = asyncio.Event(loop=self._loop)
         self._conn = None
         self._socket = None
         self.ws: Optional[ws.WebSocketClientProtocol] = None
@@ -58,7 +58,6 @@ class ReconnectingWebsocket:
         self._queue = asyncio.Queue(loop=self._loop)
         self._handle_read_loop = None
         self._read_loop_finish = asyncio.Event(loop=self._loop)
-        self._tasks = set()
 
     async def __aenter__(self):
         await self.connect()
@@ -75,10 +74,9 @@ class ReconnectingWebsocket:
         self.ws = None
         if self._handle_read_loop:
             await self._read_loop_finish.wait()
-        if self._tasks:
-            await asyncio.wait(self._tasks, loop=self._loop)
 
     async def connect(self):
+        self.ws_state = WSListenerState.CONNECTING
         await self._before_connect()
         assert self._path
         ws_url = self._url + self._prefix + self._path
@@ -86,13 +84,9 @@ class ReconnectingWebsocket:
         try:
             self.ws = await self._conn.__aenter__()
         except:  # noqa
-            reconnect_task = asyncio.ensure_future(self._reconnect(), loop=self._loop)
-            self._tasks.add(reconnect_task)
-            reconnect_task.add_done_callback(self._tasks.remove)
+            asyncio.ensure_future(self._reconnect(), loop=self._loop)
             return
         self.ws_state = WSListenerState.STREAMING
-        if not self._reconnecting.is_set():
-            self._reconnecting.set()
         self._reconnects = 0
         await self._after_connect()
         if self._handle_read_loop:
@@ -116,16 +110,10 @@ class ReconnectingWebsocket:
         self._read_loop_finish.clear()
         while 1:
             try:
-                if not self.ws or self.ws_state == WSListenerState.EXITING:
-                    break
-                if self.ws_state == WSListenerState.RECONNECTING:
-                    self._log.debug("reconnecting waiting for connect")
-                    await self._reconnecting.wait()
+                if not self.ws or self.ws_state != WSListenerState.STREAMING:
                     break
                 elif self.ws.state == ws.protocol.State.CLOSED:
-                    reconnect_task = asyncio.ensure_future(self._reconnect(), loop=self._loop)
-                    self._tasks.add(reconnect_task)
-                    reconnect_task.add_done_callback(self._tasks.remove)
+                    asyncio.ensure_future(self._reconnect(), loop=self._loop)
                 else:
                     res = await asyncio.wait_for(self.ws.recv(), timeout=self.TIMEOUT)
                     res = self._handle_message(res)
@@ -148,9 +136,9 @@ class ReconnectingWebsocket:
             except Exception as e:
                 self._log.debug(f"Unknown exception ({e})")
         self._handle_read_loop = None  # Signal the coro is stopped
+        self._reconnects = 0
         if not self._read_loop_finish.is_set():
             self._read_loop_finish.set()
-        self._reconnects = 0
 
     async def recv(self):
         while 1:
@@ -173,7 +161,6 @@ class ReconnectingWebsocket:
     async def _reconnect(self):
         if self.ws_state == WSListenerState.RECONNECTING:
             return
-        self._reconnecting.clear()
         self.ws_state = WSListenerState.RECONNECTING
         await self.before_reconnect()
         if self._reconnects < self.MAX_RECONNECTS:
@@ -183,9 +170,7 @@ class ReconnectingWebsocket:
                 f"waiting {reconnect_wait}"
             )
             await asyncio.sleep(reconnect_wait)
-            connect_task = asyncio.ensure_future(self.connect(), loop=self._loop)
-            self._tasks.add(connect_task)
-            connect_task.add_done_callback(self._tasks.remove)
+            asyncio.ensure_future(self.connect(), loop=self._loop)
         else:
             self._log.error(f'Max reconnections {self.MAX_RECONNECTS} reached:')
             raise BinanceWebsocketUnableToConnect
