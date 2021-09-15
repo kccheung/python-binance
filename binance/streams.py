@@ -112,9 +112,6 @@ class ReconnectingWebsocket:
             try:
                 if not self.ws or self.ws_state != WSListenerState.STREAMING:
                     break
-                elif self.ws.state == ws.protocol.State.CLOSED:
-                    asyncio.ensure_future(self._reconnect(), loop=self._loop)
-                    break
                 else:
                     res = await asyncio.wait_for(self.ws.recv(), timeout=self.TIMEOUT)
                     res = self._handle_message(res)
@@ -129,6 +126,10 @@ class ReconnectingWebsocket:
                 self._log.debug(f"incomplete read error ({e})")
             except ConnectionClosedError as e:
                 self._log.debug(f"connection close error ({e})")
+                if self.ws:
+                    if self.ws.state == ws.protocol.State.CLOSED:
+                        asyncio.ensure_future(self._reconnect(), loop=self._loop)
+                        break
             except gaierror as e:
                 self._log.debug(f"DNS Error ({e})")
             except BinanceWebsocketUnableToConnect as e:
