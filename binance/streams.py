@@ -129,7 +129,7 @@ class ReconnectingWebsocket:
                 if self.ws:
                     if self.ws.state == ws.protocol.State.CLOSED:
                         asyncio.ensure_future(self._reconnect(), loop=self._loop)
-                        break
+                break
             except gaierror as e:
                 self._log.debug(f"DNS Error ({e})")
             except BinanceWebsocketUnableToConnect as e:
