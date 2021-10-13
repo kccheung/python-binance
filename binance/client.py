@@ -35,7 +35,7 @@ class BaseClient:
 
     REQUEST_TIMEOUT: float = 5
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: int = 0, requests_params: Dict = {}, tld='com'):
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None, requests_params: Dict = {}, tld='com'):
         """Binance API Client constructor
         :param api_key: Api Key
         :type api_key: str.
@@ -56,7 +56,7 @@ class BaseClient:
         self.session = self._init_session()
         self._requests_params = requests_params
         self.response = None
-        self.timestamp_offset = timestamp_offset
+        self.timestamp_offset = 0 if timestamp_offset is None else timestamp_offset
 
         self.N_BASE_API_URLS = len(self.BASE_API_URLS)
         self.GET_EXCHANGE_INFO_URLS = [f'{base_url}/api/v3/exchangeInfo' for base_url in self.BASE_API_URLS]
@@ -280,11 +280,12 @@ class BaseClient:
 
 class Client(BaseClient):
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: int = 0, requests_params: Dict = {}):
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None, requests_params: Dict = {}):
         super().__init__(api_key, api_secret, timestamp_offset, requests_params)
         # init DNS and SSL cert
         self.ping_fast()
-        self.reset_timestamp_offset()
+        if timestamp_offset is None:
+            self.reset_timestamp_offset()
 
     def _init_session(self) -> requests.Session:
         headers = self._get_headers()
@@ -4783,7 +4784,7 @@ class Client(BaseClient):
 class AsyncClient(BaseClient):
 
     def __init__(
-            self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: int = 0,
+            self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None,
             requests_params: Dict = {}, tld: str = 'com', loop=None
     ):
 
@@ -4791,7 +4792,7 @@ class AsyncClient(BaseClient):
         super().__init__(api_key, api_secret, timestamp_offset, requests_params, tld)
 
     @classmethod
-    async def create(cls, api_key='', api_secret='', timestamp_offset=0, requests_params=None, tld='com', loop=None):
+    async def create(cls, api_key='', api_secret='', timestamp_offset=None, requests_params=None, tld='com', loop=None):
         self = cls(api_key, api_secret, timestamp_offset, requests_params, tld, loop)
         await self.ping_fast()
         return self
