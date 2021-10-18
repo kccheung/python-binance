@@ -6,10 +6,11 @@ class BinanceAPIException(Exception):
 
     def __init__(self, response, status_code, text):
         self.code = 0
+        self.message = ''
         try:
             json_res = json.loads(text)
-        except ValueError:
-            self.message = 'Invalid JSON error message from Binance: {}'.format(response.text)
+        except json.JSONDecodeError:
+            self.message = 'Invalid JSON error message from Binance: {}'.format(text)
         else:
             self.code = json_res['code']
             self.message = json_res['msg']

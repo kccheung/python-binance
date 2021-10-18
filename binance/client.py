@@ -325,12 +325,12 @@ class Client(BaseClient):
         Raises the appropriate exceptions when necessary; otherwise, returns the
         response.
         """
-        if not (200 <= response.status_code < 300):
-            raise BinanceAPIException(response, response.status_code, response.text)
-        try:
-            return response.json()
-        except ValueError:
-            raise BinanceRequestException(f'Invalid Response: {response.text}')
+        if response.status_code < 400:
+            try:
+                return response.json()
+            except ValueError:
+                raise BinanceRequestException(f'Invalid Response: {response.text}')
+        raise BinanceAPIException(response, response.status_code, response.text)
 
     def _request_api(self, method, path: str, signed: bool = False, version=None, **kwargs):
         uri = self._create_api_uri(path, signed, version)
@@ -4845,13 +4845,13 @@ class AsyncClient(BaseClient):
         Raises the appropriate exceptions when necessary; otherwise, returns the
         response.
         """
-        if not (200 <= response.status < 300):
-            raise BinanceAPIException(response, response.status, await response.text())
-        try:
-            return await response.json()
-        except ValueError:
-            txt = await response.text()
-            raise BinanceRequestException(f'Invalid Response: {txt}')
+        if response.status < 400:
+            try:
+                return await response.json()
+            except ValueError:
+                txt = await response.text()
+                raise BinanceRequestException(f'Invalid Response: {txt}')
+        raise BinanceAPIException(response, response.status, await response.text())
 
     async def _request_api(self, method, path, signed=False, version=None, **kwargs):
         uri = self._create_api_uri(path, signed, version)
