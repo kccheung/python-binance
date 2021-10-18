@@ -328,7 +328,7 @@ class Client(BaseClient):
         if response.status_code < 400:
             try:
                 return response.json()
-            except ValueError:
+            except Exception:
                 raise BinanceRequestException(f'Invalid Response: {response.text}')
         raise BinanceAPIException(response, response.status_code, response.text)
 
@@ -4849,8 +4849,13 @@ class AsyncClient(BaseClient):
             try:
                 return await response.json()
             except ValueError:
-                txt = await response.text()
-                raise BinanceRequestException(f'Invalid Response: {txt}')
+                try:
+                    txt = await response.text()
+                    raise BinanceRequestException(f'Invalid Response: {txt}')
+                except Exception:
+                    raise BinanceRequestException(f'Invalid Response with status {response.status}')
+            except Exception:
+                raise BinanceRequestException(f'Invalid Response with status {response.status}')
         raise BinanceAPIException(response, response.status, await response.text())
 
     async def _request_api(self, method, path, signed=False, version=None, **kwargs):
