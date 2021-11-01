@@ -1798,6 +1798,9 @@ class Client(BaseClient):
     def cancel_orders_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         return self._other_signed_fast('delete', self.cancel_orders_url, request_body, timeout)
 
+    def get_order_rate_limit(self, **params):
+        return self._get('rateLimit/order', True, data=params)
+
     # User Stream Endpoints
     def get_account(self, **params):
         """Get current account information.
@@ -5306,6 +5309,9 @@ class AsyncClient(BaseClient):
 
     async def cancel_orders_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         return await self._other_signed_fast('delete', self.cancel_orders_url, request_body, timeout)
+
+    async def get_order_rate_limit(self, **params):
+        return await self._get('rateLimit/order', True, data=params)
 
     # User Stream Endpoints
     async def get_account(self, **params):
