@@ -3806,7 +3806,7 @@ class Client(BaseClient):
         """
         return self._request_margin_api('get', 'margin/isolated/transfer', signed=True, data=params)
 
-    # Lending Endpoints
+    # Saving Endpoints
 
     def get_lending_product_list(self, **params):
         """Get Lending Product List
@@ -3886,6 +3886,64 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
         """
         return self._request_margin_api('get', 'lending/project/list', signed=True, data=params)
+
+    def purchase_fixed_activity_project(self, **params):
+        """Purchase Fixed and Activity Project
+        https://binance-docs.github.io/apidocs/spot/en/#purchase-fixed-activity-project-user_data
+        :param projectId: required
+        :type projectId: str
+        :param lot: required
+        :type lot: int
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            [
+                {
+                    "purchaseId": "18356"
+                }
+            ]
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._request_margin_api('post', 'lending/customizedFixed/purchase', signed=True, data=params)
+
+    def get_fixed_activity_project_position(self, **params):
+        """Get Fixed and Activity Project Position
+        https://binance-docs.github.io/apidocs/spot/en/#get-fixed-activity-project-position-user_data
+        :param asset: optional
+        :type asset: str
+        :param projectId: optional
+        :type projectId: str
+        :param status: optional - "HOLDING", "REDEEMED"
+        :type status: str
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            [
+                {
+                    "asset": "USDT",
+                    "canTransfer": true,
+                    "createTimestamp": 1587010770000,
+                    "duration": 14,
+                    "endTime": 1588291200000,
+                    "interest": "0.19950000",
+                    "interestRate": "0.05201250",
+                    "lot": 1,
+                    "positionId": 51724,
+                    "principal": "100.00000000",
+                    "projectId": "CUSDT14DAYSS001",
+                    "projectName": "USDT",
+                    "purchaseTime": 1587010771000,
+                    "redeemDate": "2020-05-01",
+                    "startTime": 1587081600000,
+                    "status": "HOLDING",
+                    "type": "CUSTOMIZED_FIXED"
+                }
+            ]
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._request_margin_api('get', 'lending/project/position/list', signed=True, data=params)
 
     def get_lending_account(self, **params):
         """Get Lending Account Details
@@ -5574,7 +5632,7 @@ class AsyncClient(BaseClient):
     async def get_all_isolated_margin_symbols(self, **params):
         return await self._request_margin_api('get', 'margin/isolated/allPairs', signed=True, data=params)
 
-    # Lending Endpoints
+    # Saving Endpoints
 
     async def get_lending_product_list(self, **params):
         return await self._request_margin_api('get', 'lending/daily/product/list', signed=True, data=params)
@@ -5596,6 +5654,12 @@ class AsyncClient(BaseClient):
 
     async def get_fixed_activity_project_list(self, **params):
         return await self._request_margin_api('get', 'lending/project/list', signed=True, data=params)
+
+    async def purchase_fixed_activity_project(self, **params):
+        return await self._request_margin_api('post', 'lending/customizedFixed/purchase', signed=True, data=params)
+
+    async def get_fixed_activity_project_position(self, **params):
+        return await self._request_margin_api('get', 'lending/project/position/list', signed=True, data=params)
 
     async def get_lending_account(self, **params):
         return await self._request_margin_api('get', 'lending/union/account', signed=True, data=params)
