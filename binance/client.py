@@ -65,9 +65,11 @@ class BaseClient:
         self.GET_ORDER_BOOK_URLS = [f'{base_url}/api/v3/depth' for base_url in self.BASE_API_URLS]
         self.GET_AGGREGATE_TRADES_URLS = [f'{base_url}/api/v3/aggTrades' for base_url in self.BASE_API_URLS]
         self.GET_AVG_PRICE_URLS = [f'{base_url}/api/v3/avgPrice' for base_url in self.BASE_API_URLS]
-        self.GET_TICKER_URLS = [f'{base_url}/api/v3/ticker/24hr' for base_url in self.BASE_API_URLS]
-        self.GET_ORDERBOOL_TICKER_URLS = [f'{base_url}/api/v3/ticker/bookTicker' for base_url in self.BASE_API_URLS]
+        self.GET_TICKER_24HR_URLS = [f'{base_url}/api/v3/ticker/24hr' for base_url in self.BASE_API_URLS]
+        self.GET_ORDERBOOK_TICKER_URLS = [f'{base_url}/api/v3/ticker/bookTicker' for base_url in self.BASE_API_URLS]
+        self.GET_TICKER_URLS = [f'{base_url}/api/v3/ticker' for base_url in self.BASE_API_URLS]
         self.GET_ORDER_URLS = [f'{base_url}/api/v3/order' for base_url in self.BASE_API_URLS]
+        self.REPLACE_ORDER_URLS = [f'{base_url}/api/v3/order/cancelReplace' for base_url in self.BASE_API_URLS]
         self.GET_ALL_ORDERS_URLS = [f'{base_url}/api/v3/allOrders' for base_url in self.BASE_API_URLS]
         self.GET_OPEN_ORDERS_URLS = [f'{base_url}/api/v3/openOrders' for base_url in self.BASE_API_URLS]
         self.GET_ACCOUNT_URLS = [f'{base_url}/api/v3/account' for base_url in self.BASE_API_URLS]
@@ -82,12 +84,14 @@ class BaseClient:
         self.get_order_book_url = self.GET_ORDER_BOOK_URLS[0]
         self.get_aggregate_trades_url = self.GET_AGGREGATE_TRADES_URLS[0]
         self.get_avg_price_url = self.GET_AVG_PRICE_URLS[0]
-        self.get_ticker_url = self.GET_TICKER_URLS[0]
-        self.get_orderbook_ticker_url = self.GET_ORDERBOOL_TICKER_URLS[0]
+        self.get_ticker_24hr_url = self.GET_TICKER_24HR_URLS[0]
+        self.get_orderbook_ticker_url = self.GET_ORDERBOOK_TICKER_URLS[0]
         self.get_orderbook_tickers_url = self.get_orderbook_ticker_url
+        self.get_ticker_url = self.GET_TICKER_URLS[0]
         self.get_order_url = self.GET_ORDER_URLS[0]
         self.create_order_url = self.get_order_url
         self.cancel_order_url = self.get_order_url
+        self.replace_order_url = self.REPLACE_ORDER_URLS[0]
         self.get_all_orders_url = self.GET_ALL_ORDERS_URLS[0]
         self.get_open_orders_url = self.GET_OPEN_ORDERS_URLS[0]
         self.cancel_orders_url = self.get_open_orders_url
@@ -162,12 +166,14 @@ class BaseClient:
             self.get_order_book_url = self.GET_ORDER_BOOK_URLS[location]
             self.get_aggregate_trades_url = self.GET_AGGREGATE_TRADES_URLS[location]
             self.get_avg_price_url = self.GET_AVG_PRICE_URLS[location]
-            self.get_ticker_url = self.GET_TICKER_URLS[location]
-            self.get_orderbook_ticker_url = self.GET_ORDERBOOL_TICKER_URLS[location]
+            self.get_ticker_24hr_url = self.GET_TICKER_24HR_URLS[location]
+            self.get_orderbook_ticker_url = self.GET_ORDERBOOK_TICKER_URLS[location]
             self.get_orderbook_tickers_url = self.get_orderbook_ticker_url
+            self.get_ticker_url = self.GET_TICKER_URLS[location]
             self.get_order_url = self.GET_ORDER_URLS[location]
             self.create_order_url = self.get_order_url
             self.cancel_order_url = self.get_order_url
+            self.replace_order_url = self.REPLACE_ORDER_URLS[location]
             self.get_all_orders_url = self.GET_ALL_ORDERS_URLS[location]
             self.get_open_orders_url = self.GET_OPEN_ORDERS_URLS[location]
             self.cancel_orders_url = self.get_open_orders_url
@@ -1086,7 +1092,7 @@ class Client(BaseClient):
         return self._get('ticker/24hr', data=params)
 
     def get_ticker_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return self._request_fast('get', self.get_ticker_url, query_string, timeout)
+        return self._request_fast('get', self.get_ticker_24hr_url, query_string, timeout)
 
     def get_symbol_ticker(self, **params):
         """Latest price for a symbol or symbols.
@@ -1153,6 +1159,80 @@ class Client(BaseClient):
 
     def get_orderbook_ticker_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         return self._request_fast('get', self.get_orderbook_ticker_url, query_string, timeout)
+
+    def get_price_change(self, **params):
+        """Rolling window price change statistics.
+        https://binance-docs.github.io/apidocs/spot/en/#rolling-window-price-change-statistics
+        Either symbol or symbols must be provided
+        :param symbol:
+        :type symbol: str
+        :param symbols:
+        :type symbols: list[str]
+        :param windowSize: optional
+        :type windowSize: str - {1m, 2m, ..., 59m, 1h, 2h, ..., 23h, 1d, 2d, ..., 7d}, default 1d
+        :returns: API response
+        .. code-block:: python
+            {
+              "symbol":             "BNBBTC",
+              "priceChange":        "-8.00000000",  // Absolute price change
+              "priceChangePercent": "-88.889",      // Relative price change in percent
+              "weightedAvgPrice":   "2.60427807",   // QuoteVolume / Volume
+              "openPrice":          "9.00000000",
+              "highPrice":          "9.00000000",
+              "lowPrice":           "1.00000000",
+              "lastPrice":          "1.00000000",
+              "volume":             "187.00000000",
+              "quoteVolume":        "487.00000000", // Sum of (price * volume) for all trades
+              "openTime":           1641859200000,  // Open time for ticker window
+              "closeTime":          1642031999999,  // Close time for ticker window
+              "firstId":            0,              // Trade IDs
+              "lastId":             60,
+              "count":              61              // Number of trades in the interval
+            }
+        OR
+        .. code-block:: python
+            [
+              {
+                "symbol": "BTCUSDT",
+                "priceChange": "-154.13000000",
+                "priceChangePercent": "-0.740",
+                "weightedAvgPrice": "20677.46305250",
+                "openPrice": "20825.27000000",
+                "highPrice": "20972.46000000",
+                "lowPrice": "20327.92000000",
+                "lastPrice": "20671.14000000",
+                "volume": "72.65112300",
+                "quoteVolume": "1502240.91155513",
+                "openTime": 1655432400000,
+                "closeTime": 1655446835460,
+                "firstId": 11147809,
+                "lastId": 11149775,
+                "count": 1967
+              },
+              {
+                "symbol": "BNBBTC",
+                "priceChange": "0.00008530",
+                "priceChangePercent": "0.823",
+                "weightedAvgPrice": "0.01043129",
+                "openPrice": "0.01036170",
+                "highPrice": "0.01049850",
+                "lowPrice": "0.01033870",
+                "lastPrice": "0.01044700",
+                "volume": "166.67000000",
+                "quoteVolume": "1.73858301",
+                "openTime": 1655432400000,
+                "closeTime": 1655446835460,
+                "firstId": 2351674,
+                "lastId": 2352034,
+                "count": 361
+              }
+            ]
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._get('ticker', data=params)
+
+    def get_price_change_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._request_fast('get', self.get_ticker_url, query_string, timeout)
 
     # Account Endpoints
 
@@ -1442,6 +1522,170 @@ class Client(BaseClient):
 
     def cancel_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         return self._other_signed_fast('delete', self.cancel_order_url, request_body, timeout)
+
+    def replace_order(self, **params):
+        """Cancels an existing order and places a new order on the same symbol.
+        Filters are evaluated before the cancel order is placed.
+        If the new order placement is successfully sent to the engine, the order count will increase by 1.
+        https://binance-docs.github.io/apidocs/spot/en/#cancel-an-existing-order-and-send-a-new-order-trade
+        :param symbol: required
+        :type symbol: str
+        :param side: required
+        :type side: str
+        :param type: required
+        :type type: str
+        :param cancelReplaceMode: required
+        :type cancelReplaceMode: str {"STOP_ON_FAILURE", "ALLOW_FAILURE"}
+        :param timeInForce: optional
+        :type timeInForce: str
+        :param quantity: optional
+        :type quantity: decimal
+        :param quoteOrderQty: optional
+        :type quoteOrderQty: decimal
+        :param price: optional
+        :type price: decimal
+        :param cancelNewClientOrderId: optional
+        :type cancelNewClientOrderId: str
+        :param cancelOrigClientOrderId: optional
+        :type cancelOrigClientOrderId: str
+        :param cancelOrderId: optional
+        :type cancelOrderId: int
+        :param newClientOrderId: optional, used to identify the new order.
+        :type newClientOrderId: str
+        :param stopPrice: optional
+        :type stopPrice: decimal
+        :param trailingDelta: optional
+        :type trailingDelta: int
+        :param icebergQty: optional
+        :type icebergQty: decimal
+        :param newOrderRespType: optional
+        :type newOrderRespType: str
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            Response SUCCESS:
+            //Both the cancel order placement and new order placement succeeded.
+            {
+              "cancelResult": "SUCCESS",
+              "newOrderResult": "SUCCESS",
+              "cancelResponse": {
+                "symbol": "BTCUSDT",
+                "origClientOrderId": "DnLo3vTAQcjha43lAZhZ0y",
+                "orderId": 9,
+                "orderListId": -1,
+                "clientOrderId": "osxN3JXAtJvKvCqGeMWMVR",
+                "price": "0.01000000",
+                "origQty": "0.000100",
+                "executedQty": "0.00000000",
+                "cummulativeQuoteQty": "0.00000000",
+                "status": "CANCELED",
+                "timeInForce": "GTC",
+                "type": "LIMIT",
+                "side": "SELL"
+              },
+              "newOrderResponse": {
+                "symbol": "BTCUSDT",
+                "orderId": 10,
+                "orderListId": -1,
+                "clientOrderId": "wOceeeOzNORyLiQfw7jd8S",
+                "transactTime": 1652928801803,
+                "price": "0.02000000",
+                "origQty": "0.040000",
+                "executedQty": "0.00000000",
+                "cummulativeQuoteQty": "0.00000000",
+                "status": "NEW",
+                "timeInForce": "GTC",
+                "type": "LIMIT",
+                "side": "BUY",
+                "fills": []
+              }
+            }
+            Response when Cancel Order Fails with STOP_ON_FAILURE:
+            {
+              "code": -2022,
+              "msg": "Order cancel-replace failed.",
+              "data": {
+                "cancelResult": "FAILURE",
+                "newOrderResult": "NOT_ATTEMPTED",
+                "cancelResponse": {
+                  "code": -2011,
+                  "msg": "Unknown order sent."
+                },
+                "newOrderResponse": null
+              }
+            }
+            Response when Cancel Order Succeeds but New Order Placement Fails:
+            {
+              "code": -2021,
+              "msg": "Order cancel-replace partially failed.",
+              "data": {
+                "cancelResult": "SUCCESS",
+                "newOrderResult": "FAILURE",
+                "cancelResponse": {
+                  "symbol": "BTCUSDT",
+                  "origClientOrderId": "86M8erehfExV8z2RC8Zo8k",
+                  "orderId": 3,
+                  "orderListId": -1,
+                  "clientOrderId": "G1kLo6aDv2KGNTFcjfTSFq",
+                  "price": "0.006123",
+                  "origQty": "10000.000000",
+                  "executedQty": "0.000000",
+                  "cummulativeQuoteQty": "0.000000",
+                  "status": "CANCELED",
+                  "timeInForce": "GTC",
+                  "type": "LIMIT_MAKER",
+                  "side": "SELL"
+                },
+                "newOrderResponse": {
+                  "code": -2010,
+                  "msg": "Order would immediately match and take."
+                }
+              }
+            }
+            Response when Cancel Order fails with ALLOW_FAILURE:
+            {
+              "code": -2021,
+              "msg": "Order cancel-replace partially failed.",
+              "data": {
+                "cancelResult": "FAILURE",
+                "newOrderResult": "SUCCESS",
+                "cancelResponse": {
+                  "code": -2011,
+                  "msg": "Unknown order sent."
+                },
+                "newOrderResponse": {
+                  "symbol": "BTCUSDT",
+                  "orderId": 11,
+                  "orderListId": -1,
+                  "clientOrderId": "pfojJMg6IMNDKuJqDxvoxN",
+                  "transactTime": 1648540168818
+                }
+              }
+            }
+            Response when both Cancel Order and New Order Placement fail:
+            {
+              "code": -2022,
+              "msg": "Order cancel-replace failed.",
+              "data": {
+                "cancelResult": "FAILURE",
+                "newOrderResult": "FAILURE",
+                "cancelResponse": {
+                  "code": -2011,
+                  "msg": "Unknown order sent."
+                },
+                "newOrderResponse": {
+                  "code": -2010,
+                  "msg": "Order would immediately match and take."
+                }
+              }
+            }
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._post('order/cancelReplace', True, data=params)
+
+    def replace_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._other_signed_fast('post', self.replace_order_url, request_body, timeout)
 
     def get_open_orders(self, **params):
         """Get all open orders on a symbol.
@@ -5273,7 +5517,7 @@ class AsyncClient(BaseClient):
     get_ticker.__doc__ = Client.get_ticker.__doc__
 
     async def get_ticker_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return await self._request_fast('get', self.get_ticker_url, query_string, timeout)
+        return await self._request_fast('get', self.get_ticker_24hr_url, query_string, timeout)
 
     async def get_symbol_ticker(self, **params):
         return await self._get('ticker/price', data=params, version=self.PRIVATE_API_VERSION)
@@ -5287,6 +5531,14 @@ class AsyncClient(BaseClient):
 
     async def get_orderbook_ticker_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         return await self._request_fast('get', self.get_orderbook_ticker_url, query_string, timeout)
+
+    async def get_price_change(self, **params):
+        return await self._get('ticker', data=params)
+
+    get_price_change.__doc__ = Client.get_price_change.__doc__
+
+    async def get_price_change_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._request_fast('get', self.get_ticker_url, query_string, timeout)
 
     # Account Endpoints
 
@@ -5331,6 +5583,14 @@ class AsyncClient(BaseClient):
 
     async def cancel_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         return await self._other_signed_fast('delete', self.cancel_order_url, request_body, timeout)
+
+    async def replace_order(self, **params):
+        return await self._post('order/cancelReplace', True, data=params)
+
+    replace_order.__doc__ = Client.replace_order.__doc__
+
+    async def replace_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._other_signed_fast('post', self.replace_order_url, request_body, timeout)
 
     async def get_open_orders(self, **params):
         return await self._get('openOrders', True, data=params)
