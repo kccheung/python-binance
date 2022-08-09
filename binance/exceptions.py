@@ -22,6 +22,28 @@ class BinanceAPIException(Exception):
         return 'APIError(code=%s): %s' % (self.code, self.message)
 
 
+class BinanceAPIException2(Exception):
+
+    def __init__(self, response, status_code, text):
+        self.code = 0
+        self.message = ''
+        self.data = {}
+        try:
+            json_res = json.loads(text)
+        except json.JSONDecodeError:
+            self.message = 'Invalid JSON error message from Binance: {}'.format(text)
+        else:
+            self.code = json_res['code']
+            self.message = json_res['msg']
+            self.data = json_res['data']
+        self.status_code = status_code
+        self.response = response
+        self.request = getattr(response, 'request', None)
+
+    def __str__(self):  # pragma: no cover
+        return 'APIError(code=%s): %s' % (self.code, self.message)
+
+
 class BinanceRequestException(Exception):
     def __init__(self, message):
         self.message = message

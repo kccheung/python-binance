@@ -304,9 +304,18 @@ class Client(BaseClient):
         self.response = getattr(self.session, method)(uri, **kwargs)
         return self._handle_response(self.response)
 
+    def _request2(self, method, uri: str, signed: bool, force_params: bool = False, **kwargs):
+        kwargs = self._get_request_kwargs(method, signed, force_params, **kwargs)
+        self.response = getattr(self.session, method)(uri, **kwargs)
+        return self._handle_response2(self.response)
+
     def _request_fast(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         self.response = getattr(self.session, method)(uri, params=query_string, timeout=timeout)
         return self._handle_response(self.response)
+
+    def _request_fast2(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        self.response = getattr(self.session, method)(uri, params=query_string, timeout=timeout)
+        return self._handle_response2(self.response)
 
     def _get_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         if query_string:
@@ -325,6 +334,14 @@ class Client(BaseClient):
         self.response = getattr(self.session, method)(uri, data=request_body, timeout=timeout)
         return self._handle_response(self.response)
 
+    def _other_signed_fast2(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
+        request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
+        query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
+        m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
+        request_body.append(('signature', m.hexdigest()))
+        self.response = getattr(self.session, method)(uri, data=request_body, timeout=timeout)
+        return self._handle_response2(self.response)
+
     @staticmethod
     def _handle_response(response: requests.Response):
         """Internal helper for handling API responses from the Binance server.
@@ -337,6 +354,19 @@ class Client(BaseClient):
             except Exception:
                 raise BinanceRequestException(f'Invalid Response: {response.text}')
         raise BinanceAPIException(response, response.status_code, response.text)
+
+    @staticmethod
+    def _handle_response2(response: requests.Response):
+        """Internal helper for handling API responses from the Binance server.
+        Raises the appropriate exceptions when necessary; otherwise, returns the
+        response.
+        """
+        if response.status_code < 400:
+            try:
+                return response.json()
+            except Exception:
+                raise BinanceRequestException(f'Invalid Response: {response.text}')
+        raise BinanceAPIException2(response, response.status_code, response.text)
 
     def _request_api(self, method, path: str, signed: bool = False, version=None, **kwargs):
         uri = self._create_api_uri(path, signed, version)
@@ -1682,10 +1712,11 @@ class Client(BaseClient):
             }
         :raises: BinanceRequestException, BinanceAPIException
         """
-        return self._post('order/cancelReplace', True, data=params)
+        uri = self._create_api_uri('order/cancelReplace', True)
+        return self._request2('post', uri, True, data=params)
 
     def replace_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return self._other_signed_fast('post', self.replace_order_url, request_body, timeout)
+        return self._other_signed_fast2('post', self.replace_order_url, request_body, timeout)
 
     def get_open_orders(self, **params):
         """Get all open orders on a symbol.
@@ -5121,6 +5152,13 @@ class AsyncClient(BaseClient):
             self.response = response
             return await self._handle_response(response)
 
+    async def _request2(self, method, uri: str, signed: bool, force_params: bool = False, **kwargs):
+        kwargs = self._get_request_kwargs(method, signed, force_params, **kwargs)
+
+        async with getattr(self.session, method)(uri, **kwargs) as response:
+            self.response = response
+            return await self._handle_response2(response)
+
     async def _request_fast(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         async with getattr(self.session, method)(uri, params=query_string, timeout=timeout) as response:
             self.response = response
@@ -5145,6 +5183,15 @@ class AsyncClient(BaseClient):
             self.response = response
             return await self._handle_response(self.response)
 
+    async def _other_signed_fast2(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
+        request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
+        query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
+        m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
+        request_body.append(('signature', m.hexdigest()))
+        async with getattr(self.session, method)(uri, data=request_body, timeout=timeout) as response:
+            self.response = response
+            return await self._handle_response2(self.response)
+
     async def _handle_response(self, response: aiohttp.ClientResponse):
         """Internal helper for handling API responses from the Binance server.
         Raises the appropriate exceptions when necessary; otherwise, returns the
@@ -5162,6 +5209,24 @@ class AsyncClient(BaseClient):
             except Exception:
                 raise BinanceRequestException(f'Invalid Response with status {response.status}')
         raise BinanceAPIException(response, response.status, await response.text())
+
+    async def _handle_response2(self, response: aiohttp.ClientResponse):
+        """Internal helper for handling API responses from the Binance server.
+        Raises the appropriate exceptions when necessary; otherwise, returns the
+        response.
+        """
+        if response.status < 400:
+            try:
+                return await response.json()
+            except ValueError:
+                try:
+                    txt = await response.text()
+                    raise BinanceRequestException(f'Invalid Response: {txt}')
+                except Exception:
+                    raise BinanceRequestException(f'Invalid Response with status {response.status}')
+            except Exception:
+                raise BinanceRequestException(f'Invalid Response with status {response.status}')
+        raise BinanceAPIException2(response, response.status, await response.text())
 
     async def _request_api(self, method, path, signed=False, version=None, **kwargs):
         uri = self._create_api_uri(path, signed, version)
@@ -5585,12 +5650,13 @@ class AsyncClient(BaseClient):
         return await self._other_signed_fast('delete', self.cancel_order_url, request_body, timeout)
 
     async def replace_order(self, **params):
-        return await self._post('order/cancelReplace', True, data=params)
+        uri = self._create_api_uri('order/cancelReplace', True)
+        return await self._request2('post', uri, True, data=params)
 
     replace_order.__doc__ = Client.replace_order.__doc__
 
     async def replace_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return await self._other_signed_fast('post', self.replace_order_url, request_body, timeout)
+        return await self._other_signed_fast2('post', self.replace_order_url, request_body, timeout)
 
     async def get_open_orders(self, **params):
         return await self._get('openOrders', True, data=params)
