@@ -10,7 +10,7 @@ from operator import itemgetter
 from urllib.parse import urlencode
 
 from .helpers import interval_to_milliseconds, convert_ts_str
-from .exceptions import BinanceAPIException, BinanceRequestException, NotImplementedException
+from .exceptions import BinanceAPIException, BinanceAPIException2, BinanceRequestException, NotImplementedException
 from .enums import AGG_ID, HistoricalKlinesType
 
 from yarl import URL
