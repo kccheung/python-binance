@@ -35,6 +35,7 @@ def interval_to_milliseconds(interval: str) -> Optional[int]:
          None if interval suffix is not one of m, h, d, w
     """
     seconds_per_unit: Dict[str, int] = {
+        "s": 1,
         "m": 60,
         "h": 60 * 60,
         "d": 24 * 60 * 60,
