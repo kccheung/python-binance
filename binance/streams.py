@@ -191,10 +191,13 @@ class KeepAliveWebsocket(ReconnectingWebsocket):
         self._client = client
         self._user_timeout = user_timeout or KEEPALIVE_TIMEOUT
         self._timer = None
+        self._keepalive_socket_coro = None
 
     async def __aexit__(self, *args, **kwargs):
         if not self._path:
             return
+        if self._keepalive_socket_coro:
+            self._keepalive_socket_coro.close()
         if self._timer:
             self._timer.cancel()
             self._timer = None
@@ -208,10 +211,11 @@ class KeepAliveWebsocket(ReconnectingWebsocket):
         self._start_socket_timer()
 
     def _start_socket_timer(self):
+        self._keepalive_socket_coro = self._keepalive_socket()
         self._timer = self._loop.call_later(
             self._user_timeout,
             asyncio.create_task,
-            self._keepalive_socket()
+            self._keepalive_socket_coro
         )
 
     async def _get_listen_key(self):
