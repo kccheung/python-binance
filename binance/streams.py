@@ -144,13 +144,7 @@ class ReconnectingWebsocket:
     async def recv(self):
         while 1:
             try:
-                if self._queue.empty():
-                    return [await asyncio.wait_for(self._queue.get(), timeout=self.TIMEOUT, loop=self._loop)]
-                else:
-                    msgs = []
-                    for _ in range(self._queue.qsize()):
-                        msgs.append(self._queue.get_nowait())
-                    return msgs
+                return [await asyncio.wait_for(self._queue.get(), timeout=self.TIMEOUT, loop=self._loop)]
             except asyncio.TimeoutError:
                 self._log.debug(f"no message in {self.TIMEOUT} seconds")
 
