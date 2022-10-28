@@ -113,12 +113,10 @@ class ReconnectingWebsocket:
                 if not self.ws or self.ws_state != WSListenerState.STREAMING:
                     break
                 else:
-                    res = await asyncio.wait_for(self.ws.recv(), timeout=self.TIMEOUT)
+                    res = await self.ws.recv()
                     res = self._handle_message(res)
                     if res:
                         self._queue.put_nowait(res)
-            except asyncio.TimeoutError:
-                self._log.debug(f"no message in {self.TIMEOUT} seconds")
             except asyncio.CancelledError as e:
                 self._log.debug(f"cancelled error {e}")
                 break
@@ -144,7 +142,13 @@ class ReconnectingWebsocket:
     async def recv(self):
         while 1:
             try:
-                return [await asyncio.wait_for(self._queue.get(), timeout=self.TIMEOUT, loop=self._loop)]
+                if self._queue.empty():
+                    return [await asyncio.wait_for(self._queue.get(), timeout=self.TIMEOUT, loop=self._loop)]
+                else:
+                    msgs = []
+                    for _ in range(self._queue.qsize()):
+                        msgs.append(self._queue.get_nowait())
+                    return msgs
             except asyncio.TimeoutError:
                 self._log.debug(f"no message in {self.TIMEOUT} seconds")
 
