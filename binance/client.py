@@ -19,8 +19,8 @@ from yarl import URL
 class BaseClient:
     BASE_API_URLS = ['https://api.binance.com',
                      'https://api1.binance.com',
-                     'https://api2.binance.com',
-                     'https://api3.binance.com']
+                     'https://api2.binance.com']
+                     # 'https://api3.binance.com']
     API_URL = 'https://api.binance.{}/api'
     API_TESTNET_URL = 'https://testnet.binance.vision/api'
     MARGIN_API_URL = 'https://api.binance.{}/sapi'
