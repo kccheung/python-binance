@@ -15,6 +15,11 @@ from .enums import AGG_ID, HistoricalKlinesType
 
 from yarl import URL
 
+from base64 import b64encode
+from Crypto.Public import RSA
+from Crypto.Hash import SHA256
+from Crypto.Signature import pkcs1_15
+
 
 class BaseClient:
     BASE_API_URLS = ['https://api.binance.com',
@@ -35,7 +40,7 @@ class BaseClient:
 
     REQUEST_TIMEOUT: float = 5
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None, requests_params: Dict = {}, tld='com'):
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None, requests_params: Dict = {}, is_rsa=True, tld='com'):
         """Binance API Client constructor
         :param api_key: Api Key
         :type api_key: str.
@@ -52,7 +57,12 @@ class BaseClient:
         self.FUTURES_COIN_URL = self.FUTURES_COIN_URL.format(tld)
 
         self.API_KEY = api_key
-        self.API_SECRET = api_secret
+        if is_rsa:
+            self.API_SECRET = RSA.import_key(api_secret, passphrase=None)
+            self._sign = self._rsa
+        else:
+            self.API_SECRET = api_secret
+            self._sign = self.hmac
         self.session = self._init_session()
         self._requests_params = requests_params
         self.response = None
@@ -218,11 +228,19 @@ class BaseClient:
     def _create_tfutures_api_uri(self, path):
         return self.FUTURES_COIN_URL + '/' + self.FUTURES_COIN_API_VERSION + '/' + path
 
+    def _hmac(self, msg) -> str:
+        m = hmac.new(self.API_SECRET.encode('utf-8'), msg.encode('utf-8'), hashlib.sha256)
+        return m.hexdigest()
+
+    def _rsa(self, msg) -> str:
+        h = SHA256.new(msg.encode('utf-8'))
+        m = pkcs1_15.new(self.API_SECRET).sign(h)
+        return b64encode(m)
+
     def _generate_signature(self, data: Dict) -> str:
         ordered_data = self._order_params(data)
         query_string = '&'.join([f"{d[0]}={d[1]}" for d in ordered_data])
-        m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
-        return m.hexdigest()
+        return self._sign(query_string)
 
     @staticmethod
     def _order_params(data: Dict) -> List[Tuple[str, str]]:
@@ -286,8 +304,8 @@ class BaseClient:
 
 class Client(BaseClient):
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None, requests_params: Dict = {}):
-        super().__init__(api_key, api_secret, timestamp_offset, requests_params)
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None, requests_params: Dict = {}, is_rsa=True):
+        super().__init__(api_key, api_secret, timestamp_offset, requests_params, is_rsa)
         # init DNS and SSL cert
         self.ping_fast()
         if timestamp_offset is None:
@@ -322,23 +340,20 @@ class Client(BaseClient):
             query_string += f'&timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
         else:
             query_string = f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
-        m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
-        self.response = self.session.get(uri, params=f'{query_string}&signature={m.hexdigest()}', timeout=timeout)
+        self.response = self.session.get(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout)
         return self._handle_response(self.response)
 
     def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
         query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
-        m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
-        request_body.append(('signature', m.hexdigest()))
+        request_body.append(('signature', self._sign(query_string)))
         self.response = getattr(self.session, method)(uri, data=request_body, timeout=timeout)
         return self._handle_response(self.response)
 
     def _other_signed_fast2(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
         query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
-        m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
-        request_body.append(('signature', m.hexdigest()))
+        request_body.append(('signature', self._sign(query_string)))
         self.response = getattr(self.session, method)(uri, data=request_body, timeout=timeout)
         return self._handle_response2(self.response)
 
@@ -5121,15 +5136,15 @@ class AsyncClient(BaseClient):
 
     def __init__(
             self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None,
-            requests_params: Dict = {}, tld: str = 'com', loop=None
+            requests_params: Dict = {}, is_rsa=True, tld: str = 'com', loop=None
     ):
 
         self.loop = loop or asyncio.get_event_loop()
-        super().__init__(api_key, api_secret, timestamp_offset, requests_params, tld)
+        super().__init__(api_key, api_secret, timestamp_offset, requests_params, is_rsa, tld)
 
     @classmethod
-    async def create(cls, api_key='', api_secret='', timestamp_offset=None, requests_params=None, tld='com', loop=None):
-        self = cls(api_key, api_secret, timestamp_offset, requests_params, tld, loop)
+    async def create(cls, api_key='', api_secret='', timestamp_offset=None, requests_params=None, is_rsa=True, tld='com', loop=None):
+        self = cls(api_key, api_secret, timestamp_offset, requests_params, is_rsa, tld, loop)
         await self.ping_fast()
         return self
 
@@ -5169,16 +5184,14 @@ class AsyncClient(BaseClient):
             query_string += f'&timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
         else:
             query_string = f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
-        m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
-        async with self.session.get(uri, params=f'{query_string}&signature={m.hexdigest()}', timeout=timeout) as response:
+        async with self.session.get(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout) as response:
             self.response = response
             return await self._handle_response(self.response)
 
     async def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
         query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
-        m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
-        request_body.append(('signature', m.hexdigest()))
+        request_body.append(('signature', self._sign(query_string)))
         async with getattr(self.session, method)(uri, data=request_body, timeout=timeout) as response:
             self.response = response
             return await self._handle_response(self.response)
@@ -5186,8 +5199,7 @@ class AsyncClient(BaseClient):
     async def _other_signed_fast2(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
         query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
-        m = hmac.new(self.API_SECRET.encode('utf-8'), query_string.encode('utf-8'), hashlib.sha256)
-        request_body.append(('signature', m.hexdigest()))
+        request_body.append(('signature', self._sign(query_string)))
         async with getattr(self.session, method)(uri, data=request_body, timeout=timeout) as response:
             self.response = response
             return await self._handle_response2(self.response)

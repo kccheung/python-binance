@@ -3,6 +3,7 @@ certifi
 chardet
 cryptography
 dateparser
+pycryptodome>=3.15.0
 pyOpenSSL
 requests
 service-identity
