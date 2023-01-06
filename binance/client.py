@@ -347,6 +347,7 @@ class Client(BaseClient):
         request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
         query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
         request_body.append(('signature', self._sign(query_string)))
+        print(request_body)
         self.response = getattr(self.session, method)(uri, data=request_body, timeout=timeout)
         return self._handle_response(self.response)
 
