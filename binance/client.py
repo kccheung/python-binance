@@ -346,16 +346,17 @@ class Client(BaseClient):
     def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
         query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
-        request_body.append(('signature', self._sign(query_string)))
-        print(request_body)
-        self.response = getattr(self.session, method)(uri, data=request_body, timeout=timeout)
+        # request_body.append(('signature', self._sign(query_string)))
+        # self.response = getattr(self.session, method)(uri, data=request_body, timeout=timeout)
+        self.response = getattr(self.session, method)(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout)
         return self._handle_response(self.response)
 
     def _other_signed_fast2(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
         query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
-        request_body.append(('signature', self._sign(query_string)))
-        self.response = getattr(self.session, method)(uri, data=request_body, timeout=timeout)
+        # request_body.append(('signature', self._sign(query_string)))
+        # self.response = getattr(self.session, method)(uri, data=request_body, timeout=timeout)
+        self.response = getattr(self.session, method)(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout)
         return self._handle_response2(self.response)
 
     @staticmethod
@@ -5192,16 +5193,18 @@ class AsyncClient(BaseClient):
     async def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
         query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
-        request_body.append(('signature', self._sign(query_string)))
-        async with getattr(self.session, method)(uri, data=request_body, timeout=timeout) as response:
+        # request_body.append(('signature', self._sign(query_string)))
+        # async with getattr(self.session, method)(uri, data=request_body, timeout=timeout) as response:
+        async with getattr(self.session, method)(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout) as response:
             self.response = response
             return await self._handle_response(self.response)
 
     async def _other_signed_fast2(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
         query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
-        request_body.append(('signature', self._sign(query_string)))
-        async with getattr(self.session, method)(uri, data=request_body, timeout=timeout) as response:
+        # request_body.append(('signature', self._sign(query_string)))
+        # async with getattr(self.session, method)(uri, data=request_body, timeout=timeout) as response:
+        async with getattr(self.session, method)(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout) as response:
             self.response = response
             return await self._handle_response2(self.response)
 
