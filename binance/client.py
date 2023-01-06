@@ -16,7 +16,7 @@ from .enums import AGG_ID, HistoricalKlinesType
 from yarl import URL
 
 from base64 import b64encode
-from Crypto.Public import RSA
+from Crypto.PublicKey import RSA
 from Crypto.Hash import SHA256
 from Crypto.Signature import pkcs1_15
 
