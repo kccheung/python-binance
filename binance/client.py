@@ -235,8 +235,8 @@ class BaseClient:
     def _rsa(self, msg) -> str:
         h = SHA256.new(msg.encode('utf-8'))
         m = pkcs1_15.new(self.API_SECRET).sign(h)
-        print(quote_plus(b64encode(m)))
-        return quote_plus(b64encode(m))
+        print(quote_plus(m))
+        return quote_plus(m)
 
     def _generate_signature(self, data: Dict) -> str:
         ordered_data = self._order_params(data)
