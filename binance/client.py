@@ -62,7 +62,7 @@ class BaseClient:
             self._sign = self._rsa
         else:
             self.API_SECRET = api_secret
-            self._sign = self.hmac
+            self._sign = self._hmac
         self.session = self._init_session()
         self._requests_params = requests_params
         self.response = None
