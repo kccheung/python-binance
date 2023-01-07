@@ -22,7 +22,6 @@ from Crypto.Signature import pkcs1_15
 
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding
-from cryptography.hazmat.backends import default_backend
 
 
 class BaseClient:
@@ -63,7 +62,7 @@ class BaseClient:
         self.API_KEY = api_key
         if is_rsa and api_secret:
             # self.API_SECRET = RSA.import_key(api_secret, passphrase=None)
-            self.API_SECRET = serialization.load_pem_private_key(api_secret, password=None, backend=default_backend())
+            self.API_SECRET = serialization.load_pem_private_key(api_secret, password=None)
             self._sign = self._rsa
         else:
             self.API_SECRET = api_secret
