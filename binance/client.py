@@ -7,7 +7,7 @@ import hmac
 import requests
 import time
 from operator import itemgetter
-from urllib.parse import urlencode, quote_plus
+from urllib.parse import urlencode, quote
 
 from .helpers import interval_to_milliseconds, convert_ts_str
 from .exceptions import BinanceAPIException, BinanceAPIException2, BinanceRequestException, NotImplementedException
@@ -233,9 +233,7 @@ class BaseClient:
         return m.hexdigest()
 
     def _rsa(self, msg) -> str:
-        h = SHA256.new(msg.encode('utf-8'))
-        m = pkcs1_15.new(self.API_SECRET).sign(h)
-        return quote_plus(b64encode(m))
+        return quote(b64encode(pkcs1_15.new(self.API_SECRET).sign(SHA256.new(msg.encode('utf-8')))), safe='')
 
     def _generate_signature(self, data: Dict) -> str:
         ordered_data = self._order_params(data)
