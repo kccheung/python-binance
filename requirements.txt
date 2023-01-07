@@ -1,7 +1,7 @@
 aiohttp
 certifi
 chardet
-cryptography>=3.3.1,<4.0.0
+cryptography
 dateparser
 pycryptodome
 pyOpenSSL

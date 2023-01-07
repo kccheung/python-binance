@@ -20,9 +20,6 @@ from Crypto.PublicKey import RSA
 from Crypto.Hash import SHA256
 from Crypto.Signature import pkcs1_15
 
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding
-
 
 class BaseClient:
     BASE_API_URLS = ['https://api.binance.com',
@@ -61,8 +58,7 @@ class BaseClient:
 
         self.API_KEY = api_key
         if is_rsa and api_secret:
-            # self.API_SECRET = RSA.import_key(api_secret, passphrase=None)
-            self.API_SECRET = serialization.load_pem_private_key(api_secret, password=None)
+            self.API_SECRET = RSA.import_key(api_secret, passphrase=None)
             self._sign = self._rsa
         else:
             self.API_SECRET = api_secret
@@ -237,9 +233,6 @@ class BaseClient:
         return m.hexdigest()
 
     def _rsa(self, msg) -> str:
-        return b64encode(self.API_SECRET.sign(msg.encode(), padding.PKCS1v15(), hashes.SHA256())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
-
-    def _rsa2(self, msg) -> str:
         return b64encode(pkcs1_15.new(self.API_SECRET).sign(SHA256.new(msg.encode('utf-8')))).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
 
     def _generate_signature(self, data: Dict) -> str:
