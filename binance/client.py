@@ -57,7 +57,7 @@ class BaseClient:
         self.FUTURES_COIN_URL = self.FUTURES_COIN_URL.format(tld)
 
         self.API_KEY = api_key
-        if is_rsa:
+        if is_rsa and api_secret:
             self.API_SECRET = RSA.import_key(api_secret, passphrase=None)
             self._sign = self._rsa
         else:
@@ -336,11 +336,23 @@ class Client(BaseClient):
         return self._handle_response2(self.response)
 
     def _get_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
-        if query_string:
-            query_string += f'&timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
-        else:
-            query_string = f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
         self.response = self.session.get(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout)
+        return self._handle_response(self.response)
+
+    def _post_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        self.response = self.session.post(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout)
+        return self._handle_response(self.response)
+
+    def _post_signed_fast2(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        self.response = self.session.post(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout)
+        return self._handle_response2(self.response)
+
+    def _delete_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        self.response = self.session.delete(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout)
         return self._handle_response(self.response)
 
     def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
@@ -1385,8 +1397,8 @@ class Client(BaseClient):
         """
         return self._post('order', True, data=params)
 
-    def create_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return self._other_signed_fast('post', self.create_order_url, request_body, timeout)
+    def create_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._post_signed_fast(self.create_order_url, query_string, timeout)
 
     def create_oco_order(self, **params):
         """Send in a new OCO order
@@ -1567,8 +1579,8 @@ class Client(BaseClient):
         """
         return self._delete('order', True, data=params)
 
-    def cancel_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return self._other_signed_fast('delete', self.cancel_order_url, request_body, timeout)
+    def cancel_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._delete_signed_fast(self.cancel_order_url, query_string, timeout)
 
     def replace_order(self, **params):
         """Cancels an existing order and places a new order on the same symbol.
@@ -1732,8 +1744,8 @@ class Client(BaseClient):
         uri = self._create_api_uri('order/cancelReplace', True)
         return self._request2('post', uri, True, data=params)
 
-    def replace_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return self._other_signed_fast2('post', self.replace_order_url, request_body, timeout)
+    def replace_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._post_signed_fast2(self.replace_order_url, query_string, timeout)
 
     def get_open_orders(self, **params):
         """Get all open orders on a symbol.
@@ -2087,8 +2099,8 @@ class Client(BaseClient):
         """
         return self._delete('openOrders', True, data=params)
 
-    def cancel_orders_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return self._other_signed_fast('delete', self.cancel_orders_url, request_body, timeout)
+    def cancel_orders_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._delete_signed_fast(self.cancel_orders_url, query_string, timeout)
 
     def get_order_rate_limit(self, **params):
         return self._get('rateLimit/order', True, data=params)
@@ -3324,8 +3336,8 @@ class Client(BaseClient):
         """
         return self._request_margin_api('post', 'margin/order', signed=True, data=params)
 
-    def create_margin_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
-        return self._other_signed_fast('post', self.create_margin_order_url, request_body, timeout)
+    def create_margin_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return self._post_signed_fast(self.create_margin_order_url, query_string, timeout)
 
     def cancel_margin_order(self, **params) -> Dict:
         """Cancel an active order for margin account.
@@ -5182,11 +5194,26 @@ class AsyncClient(BaseClient):
             return await self._handle_response(self.response)
 
     async def _get_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
-        if query_string:
-            query_string += f'&timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
-        else:
-            query_string = f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
         async with self.session.get(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout) as response:
+            self.response = response
+            return await self._handle_response(self.response)
+
+    async def _post_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        async with self.session.post(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout) as response:
+            self.response = response
+            return await self._handle_response(self.response)
+
+    async def _post_signed_fast2(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        async with self.session.post(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout) as response:
+            self.response = response
+            return await self._handle_response2(self.response)
+
+    async def _delete_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        async with self.session.delete(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout) as response:
             self.response = response
             return await self._handle_response(self.response)
 
@@ -5628,8 +5655,8 @@ class AsyncClient(BaseClient):
 
     create_order.__doc__ = Client.create_order.__doc__
 
-    async def create_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return await self._other_signed_fast('post', self.create_order_url, request_body, timeout)
+    async def create_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._post_signed_fast(self.create_order_url, query_string, timeout)
 
     async def create_oco_order(self, **params):
         return await self._post('order/oco', True, data=params)
@@ -5662,8 +5689,8 @@ class AsyncClient(BaseClient):
 
     cancel_order.__doc__ = Client.cancel_order.__doc__
 
-    async def cancel_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return await self._other_signed_fast('delete', self.cancel_order_url, request_body, timeout)
+    async def cancel_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._delete_signed_fast(self.cancel_order_url, query_string, timeout)
 
     async def replace_order(self, **params):
         uri = self._create_api_uri('order/cancelReplace', True)
@@ -5671,8 +5698,8 @@ class AsyncClient(BaseClient):
 
     replace_order.__doc__ = Client.replace_order.__doc__
 
-    async def replace_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return await self._other_signed_fast2('post', self.replace_order_url, request_body, timeout)
+    async def replace_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._post_signed_fast2(self.replace_order_url, query_string, timeout)
 
     async def get_open_orders(self, **params):
         return await self._get('openOrders', True, data=params)
@@ -5707,8 +5734,8 @@ class AsyncClient(BaseClient):
 
     cancel_orders.__doc__ = Client.cancel_orders.__doc__
 
-    async def cancel_orders_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return await self._other_signed_fast('delete', self.cancel_orders_url, request_body, timeout)
+    async def cancel_orders_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._delete_signed_fast(self.cancel_orders_url, query_string, timeout)
 
     async def get_order_rate_limit(self, **params):
         return await self._get('rateLimit/order', True, data=params)
@@ -5880,8 +5907,8 @@ class AsyncClient(BaseClient):
     async def create_margin_order(self, **params):
         return await self._request_margin_api('post', 'margin/order', signed=True, data=params)
 
-    async def create_margin_order_fast(self, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
-        return await self._other_signed_fast('post', self.create_margin_order_url, request_body, timeout)
+    async def create_margin_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._post_signed_fast(self.create_margin_order_url, query_string, timeout)
 
     async def cancel_margin_order(self, **params):
         return await self._request_margin_api('delete', 'margin/order', signed=True, data=params)
