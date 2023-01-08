@@ -58,7 +58,8 @@ class BaseClient:
 
         self.API_KEY = api_key
         if is_rsa and api_secret:
-            self.API_SECRET = RSA.import_key(api_secret, passphrase=None)
+            rsa = RSA.import_key(api_secret, passphrase=None)
+            self.API_SECRET = pkcs1_15.new(rsa)
             self._sign = self._rsa
         else:
             self.API_SECRET = api_secret
@@ -233,7 +234,7 @@ class BaseClient:
         return m.hexdigest()
 
     def _rsa(self, msg) -> str:
-        return b64encode(pkcs1_15.new(self.API_SECRET).sign(SHA256.new(msg.encode('utf-8')))).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
+        return b64encode(self.API_SECRET.sign(SHA256.new(msg.encode('utf-8')))).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
 
     def _generate_signature(self, data: Dict) -> str:
         ordered_data = self._order_params(data)
