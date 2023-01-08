@@ -16,9 +16,9 @@ from .enums import AGG_ID, HistoricalKlinesType
 from yarl import URL
 
 from base64 import b64encode
-from Crypto.PublicKey import RSA
-from Crypto.Hash import SHA256
-from Crypto.Signature import pkcs1_15
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives import hashes
+from cryptography.hazmat.primitives.asymmetric import padding
 
 
 class BaseClient:
@@ -58,11 +58,10 @@ class BaseClient:
 
         self.API_KEY = api_key
         if is_rsa and api_secret:
-            rsa = RSA.import_key(api_secret, passphrase=None)
-            self.API_SECRET = pkcs1_15.new(rsa)
+            self.API_SECRET = serialization.load_pem_private_key(api_secret, password=None)
             self._sign = self._rsa
         else:
-            self.API_SECRET = api_secret
+            self.API_SECRET = api_secret.encode()
             self._sign = self._hmac
         self.session = self._init_session()
         self._requests_params = requests_params
@@ -230,11 +229,10 @@ class BaseClient:
         return self.FUTURES_COIN_URL + '/' + self.FUTURES_COIN_API_VERSION + '/' + path
 
     def _hmac(self, msg) -> str:
-        m = hmac.new(self.API_SECRET.encode('utf-8'), msg.encode('utf-8'), hashlib.sha256)
-        return m.hexdigest()
+        return hmac.new(self.API_SECRET, msg.encode(), hashlib.sha256).hexdigest()
 
     def _rsa(self, msg) -> str:
-        return b64encode(self.API_SECRET.sign(SHA256.new(msg.encode('utf-8')))).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
+        return b64encode(self.API_SECRET.sign(msg.encode(), padding.PKCS1v15(), hashes.SHA256())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
 
     def _generate_signature(self, data: Dict) -> str:
         ordered_data = self._order_params(data)
