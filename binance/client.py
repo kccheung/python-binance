@@ -198,10 +198,7 @@ class BaseClient:
             return False
 
     def _get_headers(self) -> Dict:
-        headers = {
-            'Accept': 'application/json',
-            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36',  # noqa
-        }
+        headers = {}
         if self.API_KEY:
             assert self.API_KEY
             headers['X-MBX-APIKEY'] = self.API_KEY
@@ -309,9 +306,8 @@ class Client(BaseClient):
             self.reset_timestamp_offset()
 
     def _init_session(self) -> requests.Session:
-        headers = self._get_headers()
         session = requests.session()
-        session.headers.update(headers)
+        session.headers = self._get_headers()
         return session
 
     def _request(self, method, uri: str, signed: bool, force_params: bool = False, **kwargs):
