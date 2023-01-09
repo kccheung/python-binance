@@ -40,7 +40,7 @@ class BaseClient:
 
     REQUEST_TIMEOUT: float = 5
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None, requests_params: Dict = {}, is_rsa=True, tld='com'):
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None, requests_params: Dict = {}, pwd=None, tld='com'):
         """Binance API Client constructor
         :param api_key: Api Key
         :type api_key: str.
@@ -57,12 +57,15 @@ class BaseClient:
         self.FUTURES_COIN_URL = self.FUTURES_COIN_URL.format(tld)
 
         self.API_KEY = api_key
-        if is_rsa and api_secret:
-            self.API_SECRET = serialization.load_pem_private_key(api_secret, password=None)
-            self._sign = self._rsa
-        else:
-            self.API_SECRET = api_secret.encode()
-            self._sign = self._hmac
+        self.API_SECRET = None
+        self._sign = self._no_sign
+        if api_secret:
+            if len(api_secret) == 64:
+                self.API_SECRET = api_secret.encode()
+                self._sign = self._hmac
+            elif len(api_secret) > 64:
+                self.API_SECRET = serialization.load_pem_private_key(api_secret, password=pwd)
+                self._sign = self._rsa
         self.session = self._init_session()
         self._requests_params = requests_params
         self.response = None
@@ -231,6 +234,9 @@ class BaseClient:
     def _rsa(self, msg) -> str:
         return b64encode(self.API_SECRET.sign(msg.encode(), padding.PKCS1v15(), hashes.SHA256())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
 
+    def _no_sign(self, msg) -> str:
+        return ''
+
     def _generate_signature(self, data: Dict) -> str:
         ordered_data = self._order_params(data)
         query_string = '&'.join([f"{d[0]}={d[1]}" for d in ordered_data])
@@ -298,8 +304,8 @@ class BaseClient:
 
 class Client(BaseClient):
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None, requests_params: Dict = {}, is_rsa=True):
-        super().__init__(api_key, api_secret, timestamp_offset, requests_params, is_rsa)
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None, requests_params: Dict = {}, pwd=None):
+        super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd)
         # init DNS and SSL cert
         self.ping_fast()
         if timestamp_offset is None:
@@ -5143,15 +5149,15 @@ class AsyncClient(BaseClient):
 
     def __init__(
             self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None,
-            requests_params: Dict = {}, is_rsa=True, tld: str = 'com', loop=None
+            requests_params: Dict = {}, pwd=None, tld: str = 'com', loop=None
     ):
 
         self.loop = loop or asyncio.get_event_loop()
-        super().__init__(api_key, api_secret, timestamp_offset, requests_params, is_rsa, tld)
+        super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd, tld)
 
     @classmethod
-    async def create(cls, api_key='', api_secret='', timestamp_offset=None, requests_params=None, is_rsa=True, tld='com', loop=None):
-        self = cls(api_key, api_secret, timestamp_offset, requests_params, is_rsa, tld, loop)
+    async def create(cls, api_key='', api_secret='', timestamp_offset=None, requests_params=None, pwd=None, tld='com', loop=None):
+        self = cls(api_key, api_secret, timestamp_offset, requests_params, pwd, tld, loop)
         await self.ping_fast()
         return self
 
