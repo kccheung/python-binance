@@ -143,7 +143,13 @@ class ReconnectingWebsocket:
         while 1:
             try:
                 if self._queue.empty():
-                    return [await asyncio.wait_for(self._queue.get(), timeout=self.TIMEOUT, loop=self._loop)]
+                    msgs = [await asyncio.wait_for(self._queue.get(), timeout=self.TIMEOUT, loop=self._loop)]
+                    if self._queue.empty():
+                        return msgs
+                    else:
+                        for _ in range(self._queue.qsize()):
+                            msgs.append(self._queue.get_nowait())
+                        return msgs
                 else:
                     msgs = []
                     for _ in range(self._queue.qsize()):
