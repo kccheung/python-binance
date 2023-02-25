@@ -4285,7 +4285,7 @@ class Client(BaseClient):
         """Get interest rate and borrow limit of loanable assets. The borrow limit is shown in USD value.
         https://binance-docs.github.io/apidocs/spot/en/#get-loanable-assets-data-user_data
         """
-        return self._request_margin_api('get', 'loan/loanable/data', data=params)
+        return self._request_margin_api('get', 'loan/loanable/data', signed=True, data=params)
 
     # Sub Accounts
 
@@ -6056,7 +6056,7 @@ class AsyncClient(BaseClient):
     # Crypto Loans Endpoints
 
     async def get_all_loanable_assets(self, **params):
-        return await self._request_margin_api('get', 'loan/loanable/data', data=params)
+        return await self._request_margin_api('get', 'loan/loanable/data', signed=True, data=params)
 
     # Sub Accounts
 
