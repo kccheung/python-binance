@@ -4279,6 +4279,14 @@ class Client(BaseClient):
         """
         return self._request_margin_api('post', 'lending/positionChanged', signed=True, data=params)
 
+    # Crypto Loans Endpoints
+
+    def get_all_loanable_assets(self, **params):
+        """Get interest rate and borrow limit of loanable assets. The borrow limit is shown in USD value.
+        https://binance-docs.github.io/apidocs/spot/en/#get-loanable-assets-data-user_data
+        """
+        return self._request_margin_api('get', 'loan/loanable/data', data=params)
+
     # Sub Accounts
 
     def get_sub_account_list(self, **params) -> Dict:
@@ -6044,6 +6052,11 @@ class AsyncClient(BaseClient):
 
     async def change_fixed_activity_to_daily_position(self, **params):
         return await self._request_margin_api('post', 'lending/positionChanged', signed=True, data=params)
+
+    # Crypto Loans Endpoints
+
+    async def get_all_loanable_assets(self, **params):
+        return await self._request_margin_api('get', 'loan/loanable/data', data=params)
 
     # Sub Accounts
 
