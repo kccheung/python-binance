@@ -4110,6 +4110,80 @@ class Client(BaseClient):
         """
         return self._request_margin_api('get', 'margin/isolated/transfer', signed=True, data=params)
 
+    def get_margin_fee_data(self, **params):
+        """Get cross margin fee data collection with any vip level or user's current specific data as https://www.binance.com/en/margin-fee
+        https://binance-docs.github.io/apidocs/spot/en/#query-cross-margin-fee-data-user_data
+        :param vipLevel
+        :type vipLevel: long
+        :param coin
+        :type coin: str
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
+
+        :returns: API response
+
+        .. code-block:: python
+            [
+                {
+                    "vipLevel": 0,
+                    "coin": "BTC",
+                    "transferIn": true,
+                    "borrowable": true,
+                    "dailyInterest": "0.00026125",
+                    "yearlyInterest": "0.0953",
+                    "borrowLimit": "180",
+                    "marginablePairs": [
+                        "BNBBTC",
+                        "TRXBTC",
+                        "ETHBTC",
+                        "BTCUSDT"
+                    ]
+                }
+            ]
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._request_margin_api('get', 'margin/crossMarginData', signed=True, data=params)
+
+    def get_isolated_margin_fee_data(self, **params):
+        """Get isolated margin fee data collection with any vip level or user's current specific data as https://www.binance.com/en/margin-fee
+        https://binance-docs.github.io/apidocs/spot/en/#query-isolated-margin-fee-data-user_data
+        :param vipLevel
+        :type vipLevel: long
+        :param symbol
+        :type symbol: str
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :param timestamp: required
+        :type timestamp: LONG
+
+        :returns: API response
+
+        .. code-block:: python
+            [
+                {
+                    "vipLevel": 0,
+                    "symbol": "BTCUSDT",
+                    "leverage": "10",
+                    "data": [
+                        {
+                            "coin": "BTC",
+                            "dailyInterest": "0.00026125",
+                            "borrowLimit": "270"
+                        },
+                        {
+                            "coin": "USDT",
+                            "dailyInterest": "0.000475",
+                            "borrowLimit": "2100000"
+                        }
+                    ]
+                }
+            ]
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._request_margin_api('get', 'margin/isolatedMarginData', signed=True, data=params)
+
     # Saving Endpoints
 
     def get_lending_product_list(self, **params):
