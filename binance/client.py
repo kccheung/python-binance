@@ -547,11 +547,10 @@ class Client(BaseClient):
         return {}
 
     def get_symbol_info_fast(self, symbol: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
-        res = self.get_exchange_info_fast(timeout)
+        res = self.get_exchange_info_fast(f'symbol={symbol}', timeout)
 
-        for item in res['symbols']:
-            if item['symbol'] == symbol:
-                return item
+        if res['symbols']:
+            return res['symbols'][0]
 
         return {}
 
