@@ -5393,13 +5393,13 @@ class AsyncClient(BaseClient):
 
     get_products.__doc__ = Client.get_products.__doc__
 
-    async def get_exchange_info(self) -> Dict:
-        return await self._get('exchangeInfo')
+    async def get_exchange_info(self, **params) -> Dict:
+        return await self._get('exchangeInfo', data=params)
 
     get_exchange_info.__doc__ = Client.get_exchange_info.__doc__
 
-    async def get_exchange_info_fast(self, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
-        return await self._request_fast('get', self.get_exchange_info_url, '', timeout)
+    async def get_exchange_info_fast(self, query_string: str = '', timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return await self._request_fast('get', self.get_exchange_info_url, query_string, timeout)
 
     async def get_symbol_info(self, symbol: str) -> Dict:
         res = await self.get_exchange_info()
