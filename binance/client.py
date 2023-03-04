@@ -441,7 +441,7 @@ class Client(BaseClient):
         products = self._request_website('get', 'exchange-api/v1/public/asset-service/product/get-products')
         return products
 
-    def get_exchange_info(self) -> Dict:
+    def get_exchange_info(self, **params) -> Dict:
         """Return rate limits and list of symbols
         :returns: list - List of product dictionaries
         .. code-block:: python
@@ -498,10 +498,10 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException
         """
 
-        return self._get('exchangeInfo')
+        return self._get('exchangeInfo', data=params)
 
-    def get_exchange_info_fast(self, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
-        return self._request_fast('get', self.get_exchange_info_url, '', timeout)
+    def get_exchange_info_fast(self, query_string: str = '', timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return self._request_fast('get', self.get_exchange_info_url, query_string, timeout)
 
     def get_symbol_info(self, symbol) -> Dict:
         """Return information about a symbol
