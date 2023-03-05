@@ -291,7 +291,7 @@ class BinanceSocketManager:
         self._conns = {}
         self._loop = loop or asyncio.get_event_loop()
         self._client = client
-        self._option = option
+        self._default_stream_url = self.STREAM_URLS[option]
         self._user_timeout = user_timeout
 
         self.testnet = False
@@ -299,7 +299,7 @@ class BinanceSocketManager:
     def _get_stream_url(self, stream_url: Optional[str] = None):
         if stream_url:
             return stream_url
-        stream_url = self.STREAM_URLS[self._option]
+        stream_url = self._default_stream_url
         if self.testnet:
             stream_url = self.STREAM_TESTNET_URL
         return stream_url
