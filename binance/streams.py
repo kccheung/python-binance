@@ -276,14 +276,14 @@ class KeepAliveWebsocket(ReconnectingWebsocket):
 
 
 class BinanceSocketManager:
-    STREAM_URL = 'wss://stream.binance.com:9443/'
+    STREAM_URLS = ['wss://stream.binance.com:9443/', 'wss://stream.binance.com:443/']
     STREAM_TESTNET_URL = 'wss://testnet.binance.vision/'
     FSTREAM_URL = 'wss://fstream.binance.com/'
     FSTREAM_TESTNET_URL = 'wss://stream.binancefuture.com/'
     DSTREAM_URL = 'wss://dstream.binance.com/'
     DSTREAM_TESTNET_URL = 'wss://dstream.binancefuture.com/'
 
-    def __init__(self, client: AsyncClient, loop=None, user_timeout=KEEPALIVE_TIMEOUT):
+    def __init__(self, client: AsyncClient, loop=None, option=0, user_timeout=KEEPALIVE_TIMEOUT):
         """Initialise the BinanceSocketManager
         :param client: Binance API client
         :type client: binance.AsyncClient
@@ -291,6 +291,7 @@ class BinanceSocketManager:
         self._conns = {}
         self._loop = loop or asyncio.get_event_loop()
         self._client = client
+        self._option = option
         self._user_timeout = user_timeout
 
         self.testnet = False
@@ -298,7 +299,7 @@ class BinanceSocketManager:
     def _get_stream_url(self, stream_url: Optional[str] = None):
         if stream_url:
             return stream_url
-        stream_url = self.STREAM_URL
+        stream_url = self.STREAM_URLS[self._option]
         if self.testnet:
             stream_url = self.STREAM_TESTNET_URL
         return stream_url
@@ -891,7 +892,7 @@ class ThreadedWebsocketManager(ThreadedApiManager):
 
     async def _before_socket_listener_start(self):
         assert self._client
-        self._bsm = BinanceSocketManager(client=self._client, loop=self._loop)
+        self._bsm = BinanceSocketManager(client=self._client, loop=self._loop, option=self._option)
 
     def _start_async_socket(
             self, callback: Callable, socket_name: str, params: Dict[str, Any], path: Optional[str] = None
