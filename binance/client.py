@@ -4362,6 +4362,21 @@ class Client(BaseClient):
         """
         return self._request_margin_api('get', 'loan/loanable/data', signed=True, data=params)
 
+    # Convert Endpoints
+
+    def get_convert_quote(self, **params):
+        """Request a quote for the requested token pairs
+        https://binance-docs.github.io/apidocs/spot/en/#send-quote-request-user_data
+        """
+        return self._request_margin_api('post', 'convert/getQuote', signed=True, data=params)
+
+    def accept_convert_quote(self, **params):
+        """
+        Accept the offered quote by quote ID.
+        https://binance-docs.github.io/apidocs/spot/en/#accept-quote-trade
+        """
+        return self._request_margin_api('post', 'convert/acceptQuote', signed=True, data=params)
+
     # Sub Accounts
 
     def get_sub_account_list(self, **params) -> Dict:
