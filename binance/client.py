@@ -1,4 +1,4 @@
-from typing import Dict, Optional, List, Tuple
+from typing import Dict, Optional, List, Tuple, Union
 
 import aiohttp
 import asyncio
@@ -44,7 +44,7 @@ class BaseClient:
 
     REQUEST_TIMEOUT: float = 5
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None, requests_params: Dict = {}, pwd=None, tld='com'):
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None, tld='com'):
         """Binance API Client constructor
         :param api_key: Api Key
         :type api_key: str.
@@ -71,7 +71,10 @@ class BaseClient:
                 self.API_SECRET = serialization.load_pem_private_key(api_secret, password=pwd)
                 self._sign = self._rsa
         self.session = self._init_session()
-        self._requests_params = requests_params
+        if requests_params:
+            self._requests_params = requests_params
+        else:
+            self._requests_params = {}
         self.response = None
         self.timestamp_offset = 0 if timestamp_offset is None else timestamp_offset
 
@@ -220,16 +223,16 @@ class BaseClient:
         v = self.PRIVATE_API_VERSION if signed else version
         return self.API_URL + '/' + v + '/' + path
 
-    def _create_margin_api_uri(self, path):
+    def _create_margin_api_uri(self, path) -> str:
         return self.MARGIN_API_URL + '/' + self.MARGIN_API_VERSION + '/' + path
 
     def _create_website_uri(self, path: str) -> str:
         return self.WEBSITE_URL + '/' + path
 
-    def _create_futures_api_uri(self, path):
+    def _create_futures_api_uri(self, path) -> str:
         return self.FUTURES_URL + '/' + self.FUTURES_API_VERSION + '/' + path
 
-    def _create_tfutures_api_uri(self, path):
+    def _create_tfutures_api_uri(self, path) -> str:
         return self.FUTURES_COIN_URL + '/' + self.FUTURES_COIN_API_VERSION + '/' + path
 
     def _hmac(self, msg) -> str:
@@ -308,7 +311,7 @@ class BaseClient:
 
 class Client(BaseClient):
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None, requests_params: Dict = {}, pwd=None):
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None):
         super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd)
         # init DNS and SSL cert
         self.ping_fast()
@@ -404,7 +407,7 @@ class Client(BaseClient):
         uri = self._create_api_uri(path, signed, version)
         return self._request(method, uri, signed, **kwargs)
 
-    def _request_futures_api(self, method, path, signed=False, **kwargs) -> Dict:
+    def _request_futures_api(self, method, path, signed=False, **kwargs):
         uri = self._create_futures_api_uri(path)
 
         return self._request(method, uri, signed, True, **kwargs)
@@ -413,24 +416,24 @@ class Client(BaseClient):
         uri = self._create_tfutures_api_uri(path)
         return self._request(method, uri, signed, True, **kwargs)
 
-    def _request_margin_api(self, method, path, signed=False, **kwargs) -> Dict:
+    def _request_margin_api(self, method, path, signed=False, **kwargs):
         uri = self._create_margin_api_uri(path)
         return self._request(method, uri, signed, **kwargs)
 
-    def _request_website(self, method, path, signed=False, **kwargs) -> Dict:
+    def _request_website(self, method, path, signed=False, **kwargs):
         uri = self._create_website_uri(path)
         return self._request(method, uri, signed, **kwargs)
 
     def _get(self, path, signed=False, version=None, **kwargs):
         return self._request_api('get', path, signed, version, **kwargs)
 
-    def _post(self, path, signed=False, version=None, **kwargs) -> Dict:
+    def _post(self, path, signed=False, version=None, **kwargs):
         return self._request_api('post', path, signed, version, **kwargs)
 
-    def _put(self, path, signed=False, version=None, **kwargs) -> Dict:
+    def _put(self, path, signed=False, version=None, **kwargs):
         return self._request_api('put', path, signed, version, **kwargs)
 
-    def _delete(self, path, signed=False, version=None, **kwargs) -> Dict:
+    def _delete(self, path, signed=False, version=None, **kwargs):
         return self._request_api('delete', path, signed, version, **kwargs)
 
     # Exchange Endpoints
@@ -616,8 +619,6 @@ class Client(BaseClient):
     def get_orderbook_tickers(self) -> Dict:
         """Best price/qty on the order book for all symbols.
         https://binance-docs.github.io/apidocs/spot/en/#symbol-order-book-ticker
-        :param symbol: optional
-        :type symbol: str
         :returns: List of order book market entries
         .. code-block:: python
             [
@@ -815,7 +816,7 @@ class Client(BaseClient):
                     start_ts = end_ts
             for t in trades:
                 yield t
-            last_id = trades[-1][self.AGG_ID]
+            last_id = trades[-1][AGG_ID]
 
         while True:
             # There is no need to wait between queries, to avoid hitting the
@@ -832,7 +833,7 @@ class Client(BaseClient):
                 return
             for t in trades:
                 yield t
-            last_id = trades[-1][self.AGG_ID]
+            last_id = trades[-1][AGG_ID]
 
     def get_klines(self, **params) -> Dict:
         """Kline/candlestick bars for a symbol. Klines are uniquely identified by their open time.
@@ -5249,7 +5250,7 @@ class AsyncClient(BaseClient):
 
     def __init__(
             self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None,
-            requests_params: Dict = {}, pwd=None, tld: str = 'com', loop=None
+            requests_params=None, pwd=None, tld: str = 'com', loop=None
     ):
 
         self.loop = loop or asyncio.get_event_loop()
@@ -5430,7 +5431,7 @@ class AsyncClient(BaseClient):
     get_symbol_info.__doc__ = Client.get_symbol_info.__doc__
 
     async def get_symbol_info_fast(self, symbol: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
-        res = await self.get_exchange_info_fast(timeout)
+        res = await self.get_exchange_info_fast('', timeout)
 
         for item in res['symbols']:
             if item['symbol'] == symbol:
@@ -5531,7 +5532,7 @@ class AsyncClient(BaseClient):
                     start_ts = end_ts
             for t in trades:
                 yield t
-            last_id = trades[-1][self.AGG_ID]
+            last_id = trades[-1][AGG_ID]
 
         while True:
             # There is no need to wait between queries, to avoid hitting the
@@ -5548,7 +5549,7 @@ class AsyncClient(BaseClient):
                 return
             for t in trades:
                 yield t
-            last_id = trades[-1][self.AGG_ID]
+            last_id = trades[-1][AGG_ID]
 
     aggregate_trade_iter.__doc__ = Client.aggregate_trade_iter.__doc__
 
