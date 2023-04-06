@@ -6457,14 +6457,14 @@ class AsyncClient(BaseClient):
     async def tfutures_income_history(self, **params):
         return await self._request_tfutures_api('get', 'income', True, data=params)
 
-    async def tfuture_stream_get_listen_key(self):
+    async def tfutures_stream_get_listen_key(self):
         res = await self._request_tfutures_api('post', 'listenKey', signed=False, data={})
         return res['listenKey']
 
-    async def tfuture_stream_keepalive(self, listenKey):
+    async def tfutures_stream_keepalive(self, listenKey):
         params = {'listenKey': listenKey}
         return await self._request_tfutures_api('put', 'listenKey', signed=False, data=params)
 
-    async def tfuture_stream_close(self, listenKey):
+    async def tfutures_stream_close(self, listenKey):
         params = {'listenKey': listenKey}
         return await self._request_tfutures_api('delete', 'listenKey', signed=False, data=params)

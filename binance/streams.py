@@ -1,14 +1,13 @@
 import asyncio
-import gzip
 import json
 import logging
 import time
 from enum import Enum
-from random import random
 from socket import gaierror
 from typing import Optional, List, Dict, Callable, Any
 
 import websockets as ws
+from websockets.legacy.protocol import State
 from websockets.exceptions import ConnectionClosedError
 
 from .client import AsyncClient
@@ -125,7 +124,7 @@ class ReconnectingWebsocket:
             except ConnectionClosedError as e:
                 self._log.debug(f"connection close error ({e})")
                 if self.ws:
-                    if self.ws.state == ws.protocol.State.CLOSED:
+                    if self.ws.state == State.CLOSED:
                         asyncio.ensure_future(self._reconnect(), loop=self._loop)
                 break
             except gaierror as e:
@@ -612,8 +611,6 @@ class BinanceSocketManager:
         """Start a websocket for all ticker data
         By default all markets are included in an array.
         https://github.com/binance-exchange/binance-official-api-docs/blob/master/web-socket-streams.md#all-market-tickers-stream
-        :param coro: callback function to handle messages
-        :type coro: function
         :returns: connection key string if successful, False otherwise
         Message Format
         .. code-block:: python
@@ -892,7 +889,7 @@ class ThreadedWebsocketManager(ThreadedApiManager):
 
     async def _before_socket_listener_start(self):
         assert self._client
-        self._bsm = BinanceSocketManager(client=self._client, loop=self._loop, option=self._option)
+        self._bsm = BinanceSocketManager(client=self._client, loop=self._loop)
 
     def _start_async_socket(
             self, callback: Callable, socket_name: str, params: Dict[str, Any], path: Optional[str] = None
