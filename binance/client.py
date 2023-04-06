@@ -311,7 +311,7 @@ class BaseClient:
 
 class Client(BaseClient):
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None):
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None):
         super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd)
         # init DNS and SSL cert
         self.ping_fast()
@@ -594,6 +594,8 @@ class Client(BaseClient):
         send_time_local = time.time_ns()
         receive_time_server = self.get_server_time_fast()
         self.timestamp_offset = -math.ceil((time.time_ns() + send_time_local) / 2000000.0) + receive_time_server['serverTime']
+        if abs(self.timestamp_offset) < 40:
+            self.timestamp_offset = 0
 
     # Market Data Endpoints
 
@@ -5249,7 +5251,7 @@ class Client(BaseClient):
 class AsyncClient(BaseClient):
 
     def __init__(
-            self, api_key: Optional[str] = None, api_secret: Optional[str] = None, timestamp_offset: Optional[int] = None,
+            self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None,
             requests_params=None, pwd=None, tld: str = 'com', loop=None
     ):
 
