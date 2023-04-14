@@ -132,11 +132,13 @@ class ReconnectingWebsocket:
                 await self._reconnect_waiter.wait()
             except gaierror as e:
                 self._log.debug(f"DNS Error ({e})")
+                break
             except BinanceWebsocketUnableToConnect as e:
                 self._log.debug(f"BinanceWebsocketUnableToConnect ({e})")
                 break
             except Exception as e:
                 self._log.debug(f"Unknown exception ({e})")
+                break
 
     async def _read_loop(self):
         self._read_loop_finish.clear()
