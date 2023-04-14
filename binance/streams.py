@@ -370,7 +370,7 @@ class BinanceWebsocketApi(ReconnectingWebsocket):
         return hmac.new(self.API_SECRETs[ai], msg.encode(), hashlib.sha256).hexdigest()
 
     def _rsa(self, msg, ai=0) -> str:
-        return b64encode(self.API_SECRETs[ai].sign(msg.encode(), padding.PKCS1v15(), hashes.SHA256())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
+        return b64encode(self.API_SECRETs[ai].sign(msg.encode(), padding.PKCS1v15(), hashes.SHA256())).decode()
 
     def _no_sign(self, msg, ai=0) -> str:
         return ''
