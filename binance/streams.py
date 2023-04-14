@@ -310,10 +310,10 @@ class KeepAliveWebsocket(ReconnectingWebsocket):
 
 class BinanceWebsocketApi(ReconnectingWebsocket):
 
-    WS_API_URL = 'wss://ws-api.binance.com:443/'
+    WS_API_URL = 'wss://ws-api.binance.com:9443/'
     WS_API_TESTNET_URL = 'wss://testnet.binance.vision/'
 
-    def __init__(self, clients: List[AsyncClient], loop, prefix='ws-api/v3?returnRateLimits=false', exit_coro=None, user_timeout=None, testnet=False):
+    def __init__(self, clients: List[AsyncClient], loop, prefix='ws-api/v3', exit_coro=None, user_timeout=None, testnet=False):
         self.ws_api_url = self.WS_API_TESTNET_URL if testnet else self.WS_API_URL
         super().__init__(loop=loop, url=self.ws_api_url, path='', prefix=prefix, exit_coro=exit_coro)
         self.API_KEYs = []
