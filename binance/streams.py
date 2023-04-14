@@ -366,7 +366,10 @@ class BinanceWebsocketApi(ReconnectingWebsocket):
         return ''
 
     async def _request(self, rid: str, method: str, **params):
-        await self.send(json.dumps({'id': rid, 'method': method, 'params': params}))
+        if params:
+            await self.send(json.dumps({'id': rid, 'method': method, 'params': params}))
+        else:
+            await self.send(json.dumps({'id': rid, 'method': method}))
 
     async def _request_signed(self, rid: str, method: str, ai=0, **params):
         params['apiKey'] = self.API_KEYs[ai]
