@@ -125,23 +125,25 @@ class ReconnectingWebsocket:
                 await self.ws.send(msg)
                 break
             except asyncio.CancelledError as e:
-                print(f"cancelled error {e}")
+                self._log.debug(f"cancelled error {e}")
                 break
             except ConnectionClosedError as e:
-                print(f"connection close error ({e})")
+                self._log.debug(f"connection close error ({e})")
+                if self.ws_state == WSListenerState.EXITING:
+                    break
                 if self.ws:
                     if self.ws.state == State.CLOSED:
                         self._reconnect_waiter.clear()
                         asyncio.ensure_future(self._reconnect(), loop=self._loop)
                 await self._reconnect_waiter.wait()
             except gaierror as e:
-                print(f"DNS Error ({e})")
+                self._log.debug(f"DNS Error ({e})")
                 break
             except BinanceWebsocketUnableToConnect as e:
-                print(f"BinanceWebsocketUnableToConnect ({e})")
+                self._log.debug(f"BinanceWebsocketUnableToConnect ({e})")
                 break
             except Exception as e:
-                print(f"Unknown exception ({e})")
+                self._log.debug(f"Unknown exception ({e})")
                 break
 
     async def _read_loop(self):
@@ -162,6 +164,8 @@ class ReconnectingWebsocket:
                 self._log.debug(f"incomplete read error ({e})")
             except ConnectionClosedError as e:
                 self._log.debug(f"connection close error ({e})")
+                if self.ws_state == WSListenerState.EXITING:
+                    break
                 if self.ws:
                     if self.ws.state == State.CLOSED:
                         self._reconnect_waiter.clear()
@@ -316,10 +320,10 @@ class KeepAliveWebsocket(ReconnectingWebsocket):
 
 class BinanceWebsocketApi(ReconnectingWebsocket):
 
-    WS_API_URL = 'wss://ws-api.binance.com:9443/'
+    WS_API_URL = 'wss://ws-api.binance.com:443/'
     WS_API_TESTNET_URL = 'wss://testnet.binance.vision/'
 
-    def __init__(self, clients: List[AsyncClient], loop, prefix='ws-api/v3', exit_coro=None, user_timeout=None, testnet=False):
+    def __init__(self, clients: List[AsyncClient], loop, prefix='ws-api/v3?returnRateLimits=false', exit_coro=None, user_timeout=None, testnet=False):
         self.ws_api_url = self.WS_API_TESTNET_URL if testnet else self.WS_API_URL
         super().__init__(loop=loop, url=self.ws_api_url, path=prefix, prefix='', exit_coro=exit_coro)
         self.API_KEYs = []
