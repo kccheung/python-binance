@@ -317,7 +317,7 @@ class BinanceWebsocketApi(ReconnectingWebsocket):
 
     def __init__(self, clients: List[AsyncClient], loop, prefix='ws-api/v3', exit_coro=None, user_timeout=None, testnet=False):
         self.ws_api_url = self.WS_API_TESTNET_URL if testnet else self.WS_API_URL
-        super().__init__(loop=loop, url=self.ws_api_url, path='', prefix=prefix, exit_coro=exit_coro)
+        super().__init__(loop=loop, url=self.ws_api_url, path=prefix, prefix='', exit_coro=exit_coro)
         self.API_KEYs = []
         self.API_SECRETs = []
         self._signs = []
