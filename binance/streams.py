@@ -510,7 +510,7 @@ class BinanceWebsocketApi(ReconnectingWebsocket):
             }
         :raises: BinanceRequestException, BinanceAPIException, BinanceOrderException, BinanceOrderMinAmountException, BinanceOrderMinPriceException, BinanceOrderMinTotalException, BinanceOrderUnknownSymbolException, BinanceOrderInactiveSymbolException
         """
-        await self._request_signed(params['clientOrderId'], 'order.place', ai, **params)
+        await self._request_signed(params['newClientOrderId'], 'order.place', ai, **params)
 
 
 class BinanceSocketManager:
