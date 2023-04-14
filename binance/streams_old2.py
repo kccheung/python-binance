@@ -15,15 +15,7 @@ from .exceptions import BinanceWebsocketUnableToConnect
 from .enums import KLINE_INTERVAL_1MINUTE, FuturesType
 from .threaded_stream import ThreadedApiManager
 
-import hashlib
-import hmac
-from base64 import b64encode
-from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import padding
-
-
 KEEPALIVE_TIMEOUT = 5 * 60  # 5 minutes
-WS_API_TIMEOUT = 60  # 1 minute
 
 
 class WSListenerState(Enum):
@@ -65,8 +57,6 @@ class ReconnectingWebsocket:
         self._queue = asyncio.Queue(loop=self._loop)
         self._handle_read_loop = None
         self._read_loop_finish = asyncio.Event(loop=self._loop)
-        self._reconnect_waiter = asyncio.Event(loop=self._loop)
-        self._reconnect_waiter.clear()
 
     async def __aenter__(self):
         await self.connect()
@@ -98,7 +88,6 @@ class ReconnectingWebsocket:
         self.ws_state = WSListenerState.STREAMING
         self._reconnects = 0
         await self._after_connect()
-        self._reconnect_waiter.set()
         if self._handle_read_loop:
             await self._read_loop_finish.wait()
         self._handle_read_loop = self._loop.call_soon_threadsafe(asyncio.create_task, self._read_loop())
@@ -115,28 +104,6 @@ class ReconnectingWebsocket:
         except ValueError:
             self._log.debug(f'error parsing evt json:{evt}')
             return None
-
-    async def send(self, msg: str):
-        while 1:
-            try:
-                await self.ws.send(msg)
-                break
-            except asyncio.CancelledError as e:
-                self._log.debug(f"cancelled error {e}")
-                break
-            except ConnectionClosedError as e:
-                self._log.debug(f"connection close error ({e})")
-                if self.ws:
-                    if self.ws.state == State.CLOSED:
-                        asyncio.ensure_future(self._reconnect(), loop=self._loop)
-                await self._reconnect_waiter.wait()
-            except gaierror as e:
-                self._log.debug(f"DNS Error ({e})")
-            except BinanceWebsocketUnableToConnect as e:
-                self._log.debug(f"BinanceWebsocketUnableToConnect ({e})")
-                break
-            except Exception as e:
-                self._log.debug(f"Unknown exception ({e})")
 
     async def _read_loop(self):
         self._read_loop_finish.clear()
@@ -205,7 +172,6 @@ class ReconnectingWebsocket:
         if self.ws_state == WSListenerState.RECONNECTING:
             return
         self.ws_state = WSListenerState.RECONNECTING
-        self._reconnect_waiter.clear()
         await self.before_reconnect()
         if self._reconnects < self.MAX_RECONNECTS:
             reconnect_wait = self._get_reconnect_wait(self._reconnects)
@@ -308,198 +274,6 @@ class KeepAliveWebsocket(ReconnectingWebsocket):
             self._start_socket_timer()
 
 
-class BinanceWebsocketApi(ReconnectingWebsocket):
-
-    WS_API_URL = 'wss://ws-api.binance.com:443/'
-    WS_API_TESTNET_URL = 'wss://testnet.binance.vision/'
-
-    def __init__(self, clients: List[AsyncClient], loop, prefix='ws-api/v3?returnRateLimits=false', exit_coro=None, user_timeout=None, testnet=False):
-        self.ws_api_url = self.WS_API_TESTNET_URL if testnet else self.WS_API_URL
-        super().__init__(loop=loop, url=self.ws_api_url, path='', prefix=prefix, exit_coro=exit_coro)
-        self.API_KEYs = []
-        self.API_SECRETs = []
-        self._signs = []
-        for ai in range(len(clients)):
-            self.API_KEYs.append(clients[ai].API_KEY)
-            self.API_SECRETs.append(clients[ai].API_SECRET)
-            self._signs.append(self._no_sign)
-            if self.API_SECRETs[ai]:
-                if len(self.API_SECRETs[ai]) == 64:
-                    self._signs[ai] = self._hmac
-                else:
-                    self._signs[ai] = self._rsa
-        self.timestamp_offset = clients[0].timestamp_offset
-        self._user_timeout = user_timeout or WS_API_TIMEOUT
-        self._timer = None
-        self._pong_coro = None
-
-    async def __aexit__(self, *args, **kwargs):
-        if self._pong_coro:
-            self._pong_coro.close()
-        if self._timer:
-            self._timer.cancel()
-            self._timer = None
-        await super().__aexit__(*args, **kwargs)
-
-    async def _after_connect(self):
-        self._start_socket_timer()
-
-    def _start_socket_timer(self):
-        self._pong_coro = self._pong()
-        self._timer = self._loop.call_later(
-            self._user_timeout,
-            asyncio.create_task,
-            self._pong_coro
-        )
-
-    async def _pong(self):
-        await self.ws.pong('')
-        self._start_socket_timer()
-
-    def _hmac(self, msg, ai=0) -> str:
-        return hmac.new(self.API_SECRETs[ai], msg.encode(), hashlib.sha256).hexdigest()
-
-    def _rsa(self, msg, ai=0) -> str:
-        return b64encode(self.API_SECRETs[ai].sign(msg.encode(), padding.PKCS1v15(), hashes.SHA256())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
-
-    def _no_sign(self, msg, ai=0) -> str:
-        return ''
-
-    async def _request(self, rid: str, method: str, **params):
-        await self.send(json.dumps({'id': rid, 'method': method, 'params': params}))
-
-    async def _request_signed(self, rid: str, method: str, ai=0, **params):
-        params['apiKey'] = self.API_KEYs[ai]
-        params['timestamp'] = int(time.time() * 1000 + self.timestamp_offset)
-        params['signature'] = self._signs[ai]('&'.join([f'{kv[0]}={kv[1]}' for kv in sorted(params.items())]), ai)
-        await self.send(json.dumps({'id': rid, 'method': method, 'params': params}))
-
-    async def ping(self, rid: str):
-        """Test connectivity to the WebSocket API.
-        https://binance-docs.github.io/apidocs/websocket_api/en/#test-connectivity
-        :returns: Empty array
-        .. code-block:: python
-            {
-              "id": "922bcc6e-9de8-440d-9e84-7c80933a8d0d",
-              "status": 200,
-              "result": {}
-            }
-        """
-        await self._request(rid, 'ping')
-
-    async def create_order(self, ai=0, **params):
-        """Send in a new order
-        Any order with an icebergQty MUST have timeInForce set to GTC.
-        https://binance-docs.github.io/apidocs/spot/en/#new-order-trade
-        :param ai: account index
-        :type ai: int
-        :param symbol: required
-        :type symbol: str
-        :param side: required
-        :type side: str
-        :param type: required
-        :type type: str
-        :param timeInForce: required if limit order
-        :type timeInForce: str
-        :param quantity: required
-        :type quantity: decimal
-        :param quoteOrderQty: amount the user wants to spend (when buying) or receive (when selling)
-            of the quote asset, applicable to MARKET orders
-        :type quoteOrderQty: decimal
-        :param price: required
-        :type price: str
-        :param newClientOrderId: A unique id for the order. Automatically generated if not sent.
-        :type newClientOrderId: str
-        :param icebergQty: Used with LIMIT, STOP_LOSS_LIMIT, and TAKE_PROFIT_LIMIT to create an iceberg order.
-        :type icebergQty: decimal
-        :param newOrderRespType: Set the response JSON. ACK, RESULT, or FULL; default: RESULT.
-        :type newOrderRespType: str
-        :param recvWindow: the number of milliseconds the request is valid for
-        :type recvWindow: int
-        :returns: API response
-        Response ACK:
-        .. code-block:: python
-            {
-              "id": "56374a46-3061-486b-a311-99ee972eb648",
-              "status": 200,
-              "result": {
-                "symbol": "BTCUSDT",
-                "orderId": 12569099453,
-                "orderListId": -1, // always -1 for singular orders
-                "clientOrderId": "4d96324ff9d44481926157ec08158a40",
-                "transactTime": 1660801715639
-              }
-            }
-        Response RESULT:
-        .. code-block:: python
-            {
-              "id": "56374a46-3061-486b-a311-99ee972eb648",
-              "status": 200,
-              "result": {
-                "symbol": "BTCUSDT",
-                "orderId": 12569099453,
-                "orderListId": -1, // always -1 for singular orders
-                "clientOrderId": "4d96324ff9d44481926157ec08158a40",
-                "transactTime": 1660801715639,
-                "price": "23416.10000000",
-                "origQty": "0.00847000",
-                "executedQty": "0.00000000",
-                "cummulativeQuoteQty": "0.00000000",
-                "status": "NEW",
-                "timeInForce": "GTC",
-                "type": "LIMIT",
-                "side": "SELL",
-                "workingTime": 1660801715639,
-                "selfTradePreventionMode": "NONE"
-              }
-            }
-        Response FULL:
-        .. code-block:: python
-            {
-              "id": "56374a46-3061-486b-a311-99ee972eb648",
-              "status": 200,
-              "result": {
-                "symbol": "BTCUSDT",
-                "orderId": 12569099453,
-                "orderListId": -1,
-                "clientOrderId": "4d96324ff9d44481926157ec08158a40",
-                "transactTime": 1660801715793,
-                "price": "23416.10000000",
-                "origQty": "0.00847000",
-                "executedQty": "0.00847000",
-                "cummulativeQuoteQty": "198.33521500",
-                "status": "FILLED",
-                "timeInForce": "GTC",
-                "type": "LIMIT",
-                "side": "SELL",
-                "workingTime": 1660801715793,
-                // FULL response is identical to RESULT response, with the same optional fields
-                // based on the order type and parameters. FULL response additionally includes
-                // the list of trades which immediately filled the order.
-                "fills": [
-                  {
-                    "price": "23416.10000000",
-                    "qty": "0.00635000",
-                    "commission": "0.000000",
-                    "commissionAsset": "BNB",
-                    "tradeId": 1650422481
-                  },
-                  {
-                    "price": "23416.50000000",
-                    "qty": "0.00212000",
-                    "commission": "0.000000",
-                    "commissionAsset": "BNB",
-                    "tradeId": 1650422482
-                  }
-                ],
-                "selfTradePreventionMode": "NONE"
-              }
-            }
-        :raises: BinanceRequestException, BinanceAPIException, BinanceOrderException, BinanceOrderMinAmountException, BinanceOrderMinPriceException, BinanceOrderMinTotalException, BinanceOrderUnknownSymbolException, BinanceOrderInactiveSymbolException
-        """
-        await self._request_signed(params['clientOrderId'], 'order.place', ai, **params)
-
-
 class BinanceSocketManager:
     STREAM_URLS = ['wss://stream.binance.com:9443/', 'wss://stream.binance.com:443/']
     STREAM_TESTNET_URL = 'wss://testnet.binance.vision/'
@@ -532,7 +306,7 @@ class BinanceSocketManager:
     def _get_socket(
             self, path: str, stream_url: Optional[str] = None, prefix: str = 'ws/',
             socket_type: BinanceSocketType = BinanceSocketType.SPOT
-    ):
+    ) -> str:
         conn_id = f'{socket_type}{path}'
         if conn_id not in self._conns:
             self._conns[conn_id] = ReconnectingWebsocket(
@@ -542,6 +316,7 @@ class BinanceSocketManager:
                 prefix=prefix,
                 exit_coro=self._stop_socket,
             )
+
         return self._conns[conn_id]
 
     def _get_account_socket(
@@ -558,6 +333,7 @@ class BinanceSocketManager:
                 exit_coro=self._stop_socket,
                 user_timeout=self._user_timeout
             )
+
         return self._conns[conn_id]
 
     def _get_futures_socket(self, path: str, futures_type: FuturesType, prefix: str = 'stream?streams='):
@@ -699,6 +475,7 @@ class BinanceSocketManager:
                 }
             ]
         """
+
         return self._get_socket(f'!miniTicker@arr@{update_time}ms')
 
     def trade_socket(self, symbol: str):
@@ -723,6 +500,7 @@ class BinanceSocketManager:
                 "M": true         # Ignore.
             }
         """
+
         return self._get_socket(symbol.lower() + '@trade')
 
     def aggtrade_socket(self, symbol: str):
@@ -983,6 +761,7 @@ class BinanceSocketManager:
                 }
             ]
         """
+
         return self._get_futures_socket('!bookTicker', futures_type=futures_type)
 
     def symbol_book_ticker_socket(self, symbol: str):
