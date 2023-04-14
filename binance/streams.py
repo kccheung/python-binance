@@ -122,22 +122,22 @@ class ReconnectingWebsocket:
                 await self.ws.send(msg)
                 break
             except asyncio.CancelledError as e:
-                self._log.debug(f"cancelled error {e}")
+                print(f"cancelled error {e}")
                 break
             except ConnectionClosedError as e:
-                self._log.debug(f"connection close error ({e})")
+                print(f"connection close error ({e})")
                 if self.ws:
                     if self.ws.state == State.CLOSED:
                         asyncio.ensure_future(self._reconnect(), loop=self._loop)
                 await self._reconnect_waiter.wait()
             except gaierror as e:
-                self._log.debug(f"DNS Error ({e})")
+                print(f"DNS Error ({e})")
                 break
             except BinanceWebsocketUnableToConnect as e:
-                self._log.debug(f"BinanceWebsocketUnableToConnect ({e})")
+                print(f"BinanceWebsocketUnableToConnect ({e})")
                 break
             except Exception as e:
-                self._log.debug(f"Unknown exception ({e})")
+                print(f"Unknown exception ({e})")
                 break
 
     async def _read_loop(self):
