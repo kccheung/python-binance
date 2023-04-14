@@ -73,16 +73,7 @@ class ReconnectingWebsocket:
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        self.ws_state = WSListenerState.EXITING
-        if self._exit_coro:
-            await self._exit_coro(self._path)
-        if self.ws:
-            self.ws.fail_connection()
-        if self._conn and hasattr(self._conn, 'protocol'):
-            await self._conn.__aexit__(exc_type, exc_val, exc_tb)
-        self.ws = None
-        if self._handle_read_loop:
-            await self._read_loop_finish.wait()
+        await self.disconnect(exc_type, exc_val, exc_tb)
 
     async def connect(self):
         self.ws_state = WSListenerState.CONNECTING
@@ -102,6 +93,18 @@ class ReconnectingWebsocket:
         if self._handle_read_loop:
             await self._read_loop_finish.wait()
         self._handle_read_loop = self._loop.call_soon_threadsafe(asyncio.create_task, self._read_loop())
+
+    async def disconnect(self, exc_type=None, exc_val=None, exc_tb=None):
+        self.ws_state = WSListenerState.EXITING
+        if self._exit_coro:
+            await self._exit_coro(self._path)
+        if self.ws:
+            self.ws.fail_connection()
+        if self._conn and hasattr(self._conn, 'protocol'):
+            await self._conn.__aexit__(exc_type, exc_val, exc_tb)
+        self.ws = None
+        if self._handle_read_loop:
+            await self._read_loop_finish.wait()
 
     async def _before_connect(self):
         pass
@@ -128,6 +131,7 @@ class ReconnectingWebsocket:
                 print(f"connection close error ({e})")
                 if self.ws:
                     if self.ws.state == State.CLOSED:
+                        self._reconnect_waiter.clear()
                         asyncio.ensure_future(self._reconnect(), loop=self._loop)
                 await self._reconnect_waiter.wait()
             except gaierror as e:
@@ -160,6 +164,7 @@ class ReconnectingWebsocket:
                 self._log.debug(f"connection close error ({e})")
                 if self.ws:
                     if self.ws.state == State.CLOSED:
+                        self._reconnect_waiter.clear()
                         asyncio.ensure_future(self._reconnect(), loop=self._loop)
                 break
             except gaierror as e:
@@ -207,7 +212,6 @@ class ReconnectingWebsocket:
         if self.ws_state == WSListenerState.RECONNECTING:
             return
         self.ws_state = WSListenerState.RECONNECTING
-        self._reconnect_waiter.clear()
         await self.before_reconnect()
         if self._reconnects < self.MAX_RECONNECTS:
             reconnect_wait = self._get_reconnect_wait(self._reconnects)
@@ -235,7 +239,7 @@ class KeepAliveWebsocket(ReconnectingWebsocket):
         self._timer = None
         self._keepalive_socket_coro = None
 
-    async def __aexit__(self, *args, **kwargs):
+    async def disconnect(self, *args, **kwargs):
         if not self._path:
             return
         if self._keepalive_socket_coro:
@@ -243,7 +247,7 @@ class KeepAliveWebsocket(ReconnectingWebsocket):
         if self._timer:
             self._timer.cancel()
             self._timer = None
-        await super().__aexit__(*args, **kwargs)
+        await super().disconnect(*args, **kwargs)
 
     async def _before_connect(self):
         if not self._path:
@@ -335,13 +339,13 @@ class BinanceWebsocketApi(ReconnectingWebsocket):
         self._timer = None
         self._pong_coro = None
 
-    async def __aexit__(self, *args, **kwargs):
+    async def disconnect(self, *args, **kwargs):
         if self._pong_coro:
             self._pong_coro.close()
         if self._timer:
             self._timer.cancel()
             self._timer = None
-        await super().__aexit__(*args, **kwargs)
+        await super().disconnect(*args, **kwargs)
 
     async def _after_connect(self):
         self._start_socket_timer()
