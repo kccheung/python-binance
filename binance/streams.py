@@ -324,7 +324,7 @@ class BinanceWebsocketApi(ReconnectingWebsocket):
             self.API_SECRETs.append(clients[ai].API_SECRET)
             self._signs.append(self._no_sign)
             if self.API_SECRETs[ai]:
-                if len(self.API_SECRETs[ai]) == 64:
+                if type(self.API_SECRETs[ai]) is bytes:
                     self._signs[ai] = self._hmac
                 else:
                     self._signs[ai] = self._rsa
