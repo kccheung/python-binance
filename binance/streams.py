@@ -518,7 +518,7 @@ class BinanceWebsocketApi(ReconnectingWebsocket):
 class BinanceSocketManager:
     STREAM_URLS = ['wss://stream.binance.com:9443/', 'wss://stream.binance.com:443/']
     STREAM_TESTNET_URL = 'wss://testnet.binance.vision/'
-    DATA_STREAM_URL = 'wss://data-stream.binance.com/'
+    DATA_STREAM_URL = 'wss://data-stream.binance.vision/'
     FSTREAM_URL = 'wss://fstream.binance.com/'
     FSTREAM_TESTNET_URL = 'wss://stream.binancefuture.com/'
     DSTREAM_URL = 'wss://dstream.binance.com/'
