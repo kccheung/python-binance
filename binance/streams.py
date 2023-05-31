@@ -8,7 +8,7 @@ from typing import Optional, List, Dict, Callable, Any
 
 import websockets as ws
 from websockets.legacy.protocol import State
-from websockets.exceptions import ConnectionClosedError
+from websockets.exceptions import ConnectionClosed
 
 from .client import AsyncClient
 from .exceptions import BinanceWebsocketUnableToConnect
@@ -127,7 +127,7 @@ class ReconnectingWebsocket:
             except asyncio.CancelledError as e:
                 self._log.debug(f"cancelled error {e}")
                 break
-            except ConnectionClosedError as e:
+            except ConnectionClosed as e:
                 self._log.debug(f"connection close error ({e})")
                 if self.ws_state == WSListenerState.EXITING:
                     break
@@ -162,7 +162,7 @@ class ReconnectingWebsocket:
                 break
             except asyncio.IncompleteReadError as e:
                 self._log.debug(f"incomplete read error ({e})")
-            except ConnectionClosedError as e:
+            except ConnectionClosed as e:
                 self._log.debug(f"connection close error ({e})")
                 if self.ws_state == WSListenerState.EXITING:
                     break
