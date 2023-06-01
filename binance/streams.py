@@ -519,6 +519,7 @@ class BinanceSocketManager:
     STREAM_URLS = ['wss://stream.binance.com:9443/', 'wss://stream.binance.com:443/']
     STREAM_TESTNET_URL = 'wss://testnet.binance.vision/'
     DATA_STREAM_URL = 'wss://data-stream.binance.vision/'
+    DATA_STREAM_URL_OLD = 'wss://data-stream.binance.com/'
     FSTREAM_URL = 'wss://fstream.binance.com/'
     FSTREAM_TESTNET_URL = 'wss://stream.binancefuture.com/'
     DSTREAM_URL = 'wss://dstream.binance.com/'
@@ -548,10 +549,12 @@ class BinanceSocketManager:
                 return self.DATA_STREAM_URL
             elif option in [0, 1]:
                 return self.STREAM_URLS[option]
+            elif option == 3:
+                return self.DATA_STREAM_URL_OLD
         return self._default_stream_url
 
     def _get_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/'):
-        conn_id = f'{BinanceSocketType.SPOT}{option if option in [0, 1, 2] else self._default_option}{path}'
+        conn_id = f'{BinanceSocketType.SPOT}{option if option in [0, 1, 2, 3] else self._default_option}{path}'
         if conn_id not in self._conns:
             self._conns[conn_id] = ReconnectingWebsocket(
                 loop=self._loop,
