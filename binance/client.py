@@ -28,7 +28,8 @@ class BaseClient:
         'https://api1.binance.com'
         # 'https://api2.binance.com',
         # 'https://api3.binance.com',
-        # 'https://api4.binance.com'
+        # 'https://api4.binance.com',
+        # 'https://api-gcp.binane.com'
     ]
     API_URL = 'https://api.binance.{}/api'
     API_TESTNET_URL = 'https://testnet.binance.vision/api'
@@ -440,12 +441,20 @@ class Client(BaseClient):
 
     def get_products(self) -> Dict:
         """Return list of products currently listed on Binance
-        Use get_exchange_info() call instead
         :returns: list - List of product dictionaries
         :raises: BinanceRequestException, BinanceAPIException
         """
-        products = self._request_website('get', 'exchange-api/v1/public/asset-service/product/get-products')
+        # products = self._request_website('get', 'exchange-api/v1/public/asset-service/product/get-products')
+        products = self._request_website('get', 'bapi/asset/v2/public/asset-service/product/get-products?includeEtf=true')
         return products
+
+    def get_assets(self) -> Dict:
+        """Return list of assets currently on Binance
+        :returns: list - List of asset dictionaries
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        assets = self._request_website('get', 'bapi/asset/v2/public/asset/asset/get-all-asset')
+        return assets
 
     def get_exchange_info(self, **params) -> Dict:
         """Return rate limits and list of symbols
@@ -5408,10 +5417,16 @@ class AsyncClient(BaseClient):
     # Exchange Endpoints
 
     async def get_products(self) -> Dict:
-        products = await self._request_website('get', 'exchange-api/v1/public/asset-service/product/get-products')
+        products = await self._request_website('get', 'bapi/asset/v2/public/asset-service/product/get-products?includeEtf=true')
         return products
 
     get_products.__doc__ = Client.get_products.__doc__
+
+    async def get_assets(self) -> Dict:
+        assets = await self._request_website('get', 'bapi/asset/v2/public/asset/asset/get-all-asset')
+        return assets
+
+    get_assets.__doc__ = Client.get_assets.__doc__
 
     async def get_exchange_info(self, **params) -> Dict:
         return await self._get('exchangeInfo', data=params)
