@@ -4204,7 +4204,7 @@ class Client(BaseClient):
         """Get Lending Product List
         https://binance-docs.github.io/apidocs/spot/en/#get-flexible-product-list-user_data
         """
-        return self._request_margin_api('get', 'lending/daily/product/list', signed=True, data=params)
+        return self._request_margin_api('get', 'simple-earn/flexible/list', signed=True, data=params)
 
     def get_lending_daily_quota_left(self, **params):
         """Get Left Daily Purchase Quota of Flexible Product.
@@ -4216,7 +4216,7 @@ class Client(BaseClient):
         """Purchase Flexible Product
         https://binance-docs.github.io/apidocs/spot/en/#purchase-flexible-product-user_data
         """
-        return self._request_margin_api('post', 'lending/daily/purchase', signed=True, data=params)
+        return self._request_margin_api('post', 'simple-earn/flexible/subscribe', signed=True, data=params)
 
     def get_lending_daily_redemption_quota(self, **params):
         """Get Left Daily Redemption Quota of Flexible Product
@@ -4234,7 +4234,7 @@ class Client(BaseClient):
         """Get Flexible Product Position
         https://binance-docs.github.io/apidocs/spot/en/#get-flexible-product-position-user_data
         """
-        return self._request_margin_api('get', 'lending/daily/token/position', signed=True, data=params)
+        return self._request_margin_api('get', 'simple-earn/flexible/position', signed=True, data=params)
 
     def get_fixed_activity_project_list(self, **params):
         """Get Fixed and Activity Project List
@@ -6121,13 +6121,13 @@ class AsyncClient(BaseClient):
     # Saving Endpoints
 
     async def get_lending_product_list(self, **params):
-        return await self._request_margin_api('get', 'lending/daily/product/list', signed=True, data=params)
+        return await self._request_margin_api('get', 'simple-earn/flexible/list', signed=True, data=params)
 
     async def get_lending_daily_quota_left(self, **params):
         return await self._request_margin_api('get', 'lending/daily/userLeftQuota', signed=True, data=params)
 
     async def purchase_lending_product(self, **params):
-        return await self._request_margin_api('post', 'lending/daily/purchase', signed=True, data=params)
+        return await self._request_margin_api('post', 'simple-earn/flexible/subscribe', signed=True, data=params)
 
     async def get_lending_daily_redemption_quota(self, **params):
         return await self._request_margin_api('get', 'lending/daily/userRedemptionQuota', signed=True, data=params)
@@ -6136,7 +6136,7 @@ class AsyncClient(BaseClient):
         return await self._request_margin_api('post', 'lending/daily/redeem', signed=True, data=params)
 
     async def get_lending_position(self, **params):
-        return await self._request_margin_api('get', 'lending/daily/token/position', signed=True, data=params)
+        return await self._request_margin_api('get', 'simple-earn/flexible/position', signed=True, data=params)
 
     async def get_fixed_activity_project_list(self, **params):
         return await self._request_margin_api('get', 'lending/project/list', signed=True, data=params)
