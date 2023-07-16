@@ -4379,7 +4379,7 @@ class Client(BaseClient):
         """Adjust LTV - Crypto Loan Adjust LTV
         https://binance-docs.github.io/apidocs/spot/en/#adjust-ltv-crypto-loan-adjust-ltv-trade
         """
-        return self._request_margin_api('post', 'loagn/adjust/ltv', signed=True, data=params)
+        return self._request_margin_api('post', 'loan/adjust/ltv', signed=True, data=params)
 
     def get_all_loanable_assets(self, **params):
         """Get interest rate and borrow limit of loanable assets. The borrow limit is shown in USD value.
