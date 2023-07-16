@@ -4369,6 +4369,18 @@ class Client(BaseClient):
 
     # Crypto Loans Endpoints
 
+    def get_loan_ongoing_orders(self, **params):
+        """Borrow - Get Loan Ongoing Orders
+        https://binance-docs.github.io/apidocs/spot/en/#borrow-get-loan-ongoing-orders-user_data
+        """
+        return self._request_margin_api('get', 'loan/ongoing/orders', signed=True, data=params)
+
+    def adjust_loan_ltv(self, **params):
+        """Adjust LTV - Crypto Loan Adjust LTV
+        https://binance-docs.github.io/apidocs/spot/en/#adjust-ltv-crypto-loan-adjust-ltv-trade
+        """
+        return self._request_margin_api('post', 'loagn/adjust/ltv', signed=True, data=params)
+
     def get_all_loanable_assets(self, **params):
         """Get interest rate and borrow limit of loanable assets. The borrow limit is shown in USD value.
         https://binance-docs.github.io/apidocs/spot/en/#get-loanable-assets-data-user_data
