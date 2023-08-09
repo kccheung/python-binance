@@ -50,6 +50,7 @@ class BinanceAPIException3(Exception):
     def __init__(self, response, status_code, text):
         self.code = 0
         self.message = ''
+        self.message_detail = {}
         self.data = {}
         try:
             json_res = json.loads(text)
@@ -60,6 +61,8 @@ class BinanceAPIException3(Exception):
                 self.code = json_res['code']
             if 'message' in json_res:
                 self.message = json_res['message']
+            if 'messageDetail' in json_res:
+                self.message_detail = json_res['messageDetail']
             if 'data' in json_res:
                 self.data = json_res['data']
         self.status_code = status_code
@@ -67,7 +70,10 @@ class BinanceAPIException3(Exception):
         self.request = getattr(response, 'request', None)
 
     def __str__(self):  # pragma: no cover
-        return 'APIError(code=%s): %s' % (self.code, self.message)
+        message_detail_str = ''
+        if self.message_detail:
+            message_detail_str = ' {' + ', '.join([str(kv[0]) + ': ' + str(kv[1]) for kv in self.message_detail.items()]) + '}'
+        return 'APIError(code=%s): %s' % (self.code, self.message) + message_detail_str
 
 
 class BinanceRequestException(Exception):
