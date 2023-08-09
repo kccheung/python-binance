@@ -367,7 +367,7 @@ class BaseClient:
             del (kwargs['data'])
 
         if data and method == 'post':
-            kwargs['data'] = '{' + ','.join(f'"{data[0]}":' + (f'"{data[1]}"' if isinstance(data[1], str) else str(data[1])) for data in kwargs['data'])
+            kwargs['data'] = '{' + ','.join(f'"{data[0]}":' + (f'"{data[1]}"' if isinstance(data[1], str) else str(data[1])) for data in kwargs['data']) + '}'
 
         return kwargs
 
