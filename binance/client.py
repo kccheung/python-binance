@@ -309,6 +309,46 @@ class BaseClient:
 
         return kwargs
 
+    def _get_request_kwargs2(self, method, signed: bool, force_params: bool = False, **kwargs) -> Dict:
+
+        # set default requests timeout
+        # kwargs['timeout'] = self.REQUEST_TIMEOUT
+
+        # add our global requests params
+        if self._requests_params:
+            kwargs.update(self._requests_params)
+
+        data = kwargs.get('data', None)
+        if data and isinstance(data, dict):
+            kwargs['data'] = data
+
+            # find any requests params passed and apply them
+            if 'requests_params' in kwargs['data']:
+                # merge requests params into kwargs
+                kwargs.update(kwargs['data']['requests_params'])
+                del (kwargs['data']['requests_params'])
+
+        if signed:
+            # generate signature
+            kwargs['data']['timestamp'] = int(time.time() * 1000 + self.timestamp_offset)
+            kwargs['data']['signature'] = self._generate_signature(kwargs['data'])
+
+        # sort get and post params to match signature order
+        if data:
+            # sort post params and remove any arguments with values of None
+            kwargs['data'] = self._order_params(kwargs['data'])
+            # Remove any arguments with values of None.
+            null_args = [i for i, (key, value) in enumerate(kwargs['data']) if value is None]
+            for i in reversed(null_args):
+                del kwargs['data'][i]
+
+        # if get request assign data array to params value for requests lib
+        if data and (method == 'get' or signed or force_params):
+            kwargs['params'] = '&'.join(f'{data[0]}={data[1]}' for data in kwargs['data'])
+            del (kwargs['data'])
+
+        return kwargs
+
 
 class Client(BaseClient):
 
@@ -335,7 +375,7 @@ class Client(BaseClient):
         return self._handle_response2(self.response)
 
     def _request3(self, method, uri: str, signed: bool, force_params: bool = False, **kwargs):
-        kwargs = self._get_request_kwargs(method, signed, force_params, **kwargs)
+        kwargs = self._get_request_kwargs2(method, signed, force_params, **kwargs)
         self.response = getattr(self.session, method)(uri, **kwargs)
         return self._handle_response3(self.response)
 
