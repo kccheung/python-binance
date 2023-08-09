@@ -376,6 +376,7 @@ class Client(BaseClient):
 
     def _request3(self, method, uri: str, signed: bool, force_params: bool = False, **kwargs):
         kwargs = self._get_request_kwargs2(method, signed, force_params, **kwargs)
+        print(kwargs)
         self.response = getattr(self.session, method)(uri, **kwargs)
         return self._handle_response3(self.response)
 
