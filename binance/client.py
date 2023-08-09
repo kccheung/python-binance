@@ -353,18 +353,21 @@ class BaseClient:
             kwargs['data']['signature'] = self._generate_signature(kwargs['data'])
 
         # sort get and post params to match signature order
-        # if data:
-        #     # sort post params and remove any arguments with values of None
-        #     kwargs['data'] = self._order_params2(kwargs['data'])
-        #     # Remove any arguments with values of None.
-        #     null_args = [i for i, (key, value) in enumerate(kwargs['data']) if value is None]
-        #     for i in reversed(null_args):
-        #         del kwargs['data'][i]
+        if data:
+            # sort post params and remove any arguments with values of None
+            kwargs['data'] = self._order_params2(kwargs['data'])
+            # Remove any arguments with values of None.
+            null_args = [i for i, (key, value) in enumerate(kwargs['data']) if value is None]
+            for i in reversed(null_args):
+                del kwargs['data'][i]
 
         # if get request assign data array to params value for requests lib
         if data and (method == 'get' or signed or force_params):
             kwargs['params'] = '&'.join(f'{data[0]}={data[1]}' for data in kwargs['data'])
             del (kwargs['data'])
+
+        if data and method == 'post':
+            kwargs['data'] = '{' + ','.join(f'"{data[0]}":' + (f'"{data[1]}"' if isinstance(data[1], str) else str(data[1])) for data in kwargs['data'])
 
         return kwargs
 
