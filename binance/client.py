@@ -11,7 +11,7 @@ from operator import itemgetter
 from urllib.parse import urlencode
 
 from .helpers import interval_to_milliseconds, convert_ts_str
-from .exceptions import BinanceAPIException, BinanceAPIException2, BinanceRequestException, NotImplementedException
+from .exceptions import BinanceAPIException, BinanceAPIException2, BinanceAPIException3, BinanceRequestException, NotImplementedException
 from .enums import AGG_ID, HistoricalKlinesType
 
 from yarl import URL
@@ -334,6 +334,11 @@ class Client(BaseClient):
         self.response = getattr(self.session, method)(uri, **kwargs)
         return self._handle_response2(self.response)
 
+    def _request3(self, method, uri: str, signed: bool, force_params: bool = False, **kwargs):
+        kwargs = self._get_request_kwargs(method, signed, force_params, **kwargs)
+        self.response = getattr(self.session, method)(uri, **kwargs)
+        return self._handle_response3(self.response)
+
     def _request_fast(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         self.response = getattr(self.session, method)(uri, params=query_string, timeout=timeout)
         return self._handle_response(self.response)
@@ -404,6 +409,19 @@ class Client(BaseClient):
                 raise BinanceRequestException(f'Invalid Response: {response.text}')
         raise BinanceAPIException2(response, response.status_code, response.text)
 
+    @staticmethod
+    def _handle_response3(response: requests.Response):
+        """Internal helper for handling API responses from the Binance server.
+        Raises the appropriate exceptions when necessary; otherwise, returns the
+        response.
+        """
+        if response.status_code < 400:
+            try:
+                return response.json()
+            except Exception:
+                raise BinanceRequestException(f'Invalid Response: {response.text}')
+        raise BinanceAPIException3(response, response.status_code, response.text)
+
     def _request_api(self, method, path: str, signed: bool = False, version=None, **kwargs):
         uri = self._create_api_uri(path, signed, version)
         return self._request(method, uri, signed, **kwargs)
@@ -423,7 +441,7 @@ class Client(BaseClient):
 
     def _request_website(self, method, path, signed=False, **kwargs):
         uri = self._create_website_uri(path)
-        return self._request(method, uri, signed, **kwargs)
+        return self._request3(method, uri, signed, **kwargs)
 
     def _get(self, path, signed=False, version=None, **kwargs):
         return self._request_api('get', path, signed, version, **kwargs)
