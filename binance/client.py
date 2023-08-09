@@ -395,12 +395,12 @@ class Client(BaseClient):
 
     def _request3(self, method, uri: str, signed: bool, force_params: bool = False, **kwargs):
         kwargs = self._get_request_kwargs2(method, signed, force_params, **kwargs)
-        print(kwargs)
-        headers = {
-            'content-type': 'application/json',
-            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+        kwargs['headers'] = {
+            'Accept': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/56.0.2924.87 Safari/537.36'
         }
-        self.response = getattr(self.session, method)(uri, headers=headers, **kwargs)
+        print(kwargs)
+        self.response = getattr(self.session, method)(uri, **kwargs)
         return self._handle_response3(self.response)
 
     def _request_fast(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
