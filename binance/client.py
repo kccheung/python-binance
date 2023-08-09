@@ -331,7 +331,7 @@ class BaseClient:
     def _get_request_kwargs2(self, method, signed: bool, force_params: bool = False, **kwargs) -> Dict:
 
         # set default requests timeout
-        # kwargs['timeout'] = self.REQUEST_TIMEOUT
+        kwargs['timeout'] = self.REQUEST_TIMEOUT
 
         # add our global requests params
         if self._requests_params:
@@ -366,9 +366,6 @@ class BaseClient:
             kwargs['params'] = '&'.join(f'{data[0]}={data[1]}' for data in kwargs['data'])
             del (kwargs['data'])
 
-        if data and method == 'post':
-            kwargs['data'] = '{' + ','.join(f'"{data[0]}":' + (f'"{data[1]}"' if isinstance(data[1], str) else str(data[1])) for data in kwargs['data']) + '}'
-
         return kwargs
 
 
@@ -397,9 +394,13 @@ class Client(BaseClient):
         return self._handle_response2(self.response)
 
     def _request3(self, method, uri: str, signed: bool, force_params: bool = False, **kwargs):
-        kwargs = self._get_request_kwargs2(method, signed, force_params, **kwargs)
+        kwargs = self._get_request_kwargs(method, signed, force_params, **kwargs)
         print(kwargs)
-        self.response = getattr(self.session, method)(uri, **kwargs)
+        headers = {
+            'content-type': 'application/json',
+            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+        }
+        self.response = getattr(self.session, method)(uri, headers=headers, **kwargs)
         return self._handle_response3(self.response)
 
     def _request_fast(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
