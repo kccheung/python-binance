@@ -7,6 +7,7 @@ import hmac
 import requests
 import time
 import math
+import json
 from operator import itemgetter
 from urllib.parse import urlencode
 
@@ -331,7 +332,7 @@ class BaseClient:
     def _get_request_kwargs2(self, method, signed: bool, force_params: bool = False, **kwargs) -> Dict:
 
         # set default requests timeout
-        # kwargs['timeout'] = self.REQUEST_TIMEOUT
+        kwargs['timeout'] = self.REQUEST_TIMEOUT
 
         # add our global requests params
         if self._requests_params:
@@ -352,22 +353,23 @@ class BaseClient:
             kwargs['data']['timestamp'] = int(time.time() * 1000 + self.timestamp_offset)
             kwargs['data']['signature'] = self._generate_signature(kwargs['data'])
 
-        # sort get and post params to match signature order
-        if data:
-            # sort post params and remove any arguments with values of None
-            kwargs['data'] = self._order_params2(kwargs['data'])
-            # Remove any arguments with values of None.
-            null_args = [i for i, (key, value) in enumerate(kwargs['data']) if value is None]
-            for i in reversed(null_args):
-                del kwargs['data'][i]
-
         # if get request assign data array to params value for requests lib
-        if data and (method == 'get' or signed or force_params):
-            kwargs['params'] = '&'.join(f'{data[0]}={data[1]}' for data in kwargs['data'])
-            del (kwargs['data'])
-
-        if data and method == 'post':
-            kwargs['data'] = '{' + ','.join(f'"{data[0]}":' + (f'"{data[1]}"' if isinstance(data[1], str) else str(data[1])) for data in kwargs['data']) + '}'
+        if data:
+            if method == 'get' or signed or force_params:
+                # sort post params and remove any arguments with values of None
+                kwargs['data'] = self._order_params2(kwargs['data'])
+                # Remove any arguments with values of None.
+                null_args = [i for i, (key, value) in enumerate(kwargs['data']) if value is None]
+                for i in reversed(null_args):
+                    del kwargs['data'][i]
+                kwargs['params'] = '&'.join(f'{data[0]}={data[1]}' for data in kwargs['data'])
+                del (kwargs['data'])
+            else:
+                kwargs['headers'] = {
+                    'content-type': 'application/json',
+                    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+                }
+                kwargs['data'] = str(json.dumps(kwargs['data']))
 
         return kwargs
 
@@ -398,11 +400,6 @@ class Client(BaseClient):
 
     def _request3(self, method, uri: str, signed: bool, force_params: bool = False, **kwargs):
         kwargs = self._get_request_kwargs2(method, signed, force_params, **kwargs)
-        kwargs['headers'] = {
-            'content-type': 'application/json',
-            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
-        }
-        print(kwargs)
         self.response = getattr(self.session, method)(uri, **kwargs)
         return self._handle_response3(self.response)
 
