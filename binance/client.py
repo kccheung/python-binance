@@ -394,7 +394,7 @@ class Client(BaseClient):
         return self._handle_response2(self.response)
 
     def _request3(self, method, uri: str, signed: bool, force_params: bool = False, **kwargs):
-        kwargs = self._get_request_kwargs(method, signed, force_params, **kwargs)
+        kwargs = self._get_request_kwargs2(method, signed, force_params, **kwargs)
         print(kwargs)
         headers = {
             'content-type': 'application/json',
