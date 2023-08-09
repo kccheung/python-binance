@@ -1,4 +1,4 @@
-from typing import Dict, Optional, List, Tuple, Union
+from typing import Dict, Optional, List, Tuple, Union, Any
 
 import aiohttp
 import asyncio
@@ -269,6 +269,25 @@ class BaseClient:
             params.append(('signature', data['signature']))
         return params
 
+    @staticmethod
+    def _order_params2(data: Dict) -> List[Tuple[str, Any]]:
+        """Convert params to list with signature as last element
+        :param data:
+        :return:
+        """
+        has_signature = False
+        params = []
+        for key, value in data.items():
+            if key == 'signature':
+                has_signature = True
+            else:
+                params.append((key, value))
+        # sort parameters by key
+        params.sort(key=itemgetter(0))
+        if has_signature:
+            params.append(('signature', data['signature']))
+        return params
+
     def _get_request_kwargs(self, method, signed: bool, force_params: bool = False, **kwargs) -> Dict:
 
         # set default requests timeout
@@ -336,7 +355,7 @@ class BaseClient:
         # sort get and post params to match signature order
         if data:
             # sort post params and remove any arguments with values of None
-            kwargs['data'] = self._order_params(kwargs['data'])
+            kwargs['data'] = self._order_params2(kwargs['data'])
             # Remove any arguments with values of None.
             null_args = [i for i, (key, value) in enumerate(kwargs['data']) if value is None]
             for i in reversed(null_args):
