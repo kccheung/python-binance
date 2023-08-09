@@ -353,7 +353,7 @@ class BaseClient:
             kwargs['data']['signature'] = self._generate_signature(kwargs['data'])
 
         # sort get and post params to match signature order
-        if data:
+        if data and method != 'post':
             # sort post params and remove any arguments with values of None
             kwargs['data'] = self._order_params2(kwargs['data'])
             # Remove any arguments with values of None.
