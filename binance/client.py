@@ -365,10 +365,14 @@ class BaseClient:
                 kwargs['params'] = '&'.join(f'{data[0]}={data[1]}' for data in kwargs['data'])
                 del (kwargs['data'])
             else:
-                kwargs['headers'] = {
-                    'content-type': 'application/json',
-                    'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
-                }
+                if 'headers' in kwargs:
+                    kwargs['headers']['content-type'] = 'application/json'
+                    kwargs['headers']['user-agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+                else:
+                    kwargs['headers'] = {
+                        'content-type': 'application/json',
+                        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+                    }
                 kwargs['data'] = str(json.dumps(kwargs['data']))
 
         return kwargs
