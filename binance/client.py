@@ -270,25 +270,6 @@ class BaseClient:
             params.append(('signature', data['signature']))
         return params
 
-    @staticmethod
-    def _order_params2(data: Dict) -> List[Tuple[str, Any]]:
-        """Convert params to list with signature as last element
-        :param data:
-        :return:
-        """
-        has_signature = False
-        params = []
-        for key, value in data.items():
-            if key == 'signature':
-                has_signature = True
-            else:
-                params.append((key, value))
-        # sort parameters by key
-        params.sort(key=itemgetter(0))
-        if has_signature:
-            params.append(('signature', data['signature']))
-        return params
-
     def _get_request_kwargs(self, method, signed: bool, force_params: bool = False, **kwargs) -> Dict:
 
         # set default requests timeout
@@ -334,6 +315,15 @@ class BaseClient:
         # set default requests timeout
         kwargs['timeout'] = self.REQUEST_TIMEOUT
 
+        if 'headers' in kwargs:
+            kwargs['headers']['content-type'] = 'application/json'
+            kwargs['headers']['user-agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+        else:
+            kwargs['headers'] = {
+                'content-type': 'application/json',
+                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+            }
+
         # add our global requests params
         if self._requests_params:
             kwargs.update(self._requests_params)
@@ -357,7 +347,7 @@ class BaseClient:
         if data:
             if method == 'get' or signed or force_params:
                 # sort post params and remove any arguments with values of None
-                kwargs['data'] = self._order_params2(kwargs['data'])
+                kwargs['data'] = self._order_params(kwargs['data'])
                 # Remove any arguments with values of None.
                 null_args = [i for i, (key, value) in enumerate(kwargs['data']) if value is None]
                 for i in reversed(null_args):
@@ -365,14 +355,6 @@ class BaseClient:
                 kwargs['params'] = '&'.join(f'{data[0]}={data[1]}' for data in kwargs['data'])
                 del (kwargs['data'])
             else:
-                if 'headers' in kwargs:
-                    kwargs['headers']['content-type'] = 'application/json'
-                    kwargs['headers']['user-agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
-                else:
-                    kwargs['headers'] = {
-                        'content-type': 'application/json',
-                        'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
-                    }
                 kwargs['data'] = str(json.dumps(kwargs['data']))
 
         return kwargs
@@ -527,8 +509,8 @@ class Client(BaseClient):
 
     def get_products(self) -> Dict:
         """Return list of products currently listed on Binance
-        :returns: list - List of product dictionaries
-        :raises: BinanceRequestException, BinanceAPIException
+        :returns: dict - List of product dictionaries
+        :raises: BinanceRequestException, BinanceAPIException3
         """
         # products = self._request_website('get', 'exchange-api/v1/public/asset-service/product/get-products')
         products = self._request_website('get', 'bapi/asset/v2/public/asset-service/product/get-products?includeEtf=true')
@@ -536,11 +518,163 @@ class Client(BaseClient):
 
     def get_assets(self) -> Dict:
         """Return list of assets currently on Binance
-        :returns: list - List of asset dictionaries
-        :raises: BinanceRequestException, BinanceAPIException
+        :returns: dict - List of asset dictionaries
+        :raises: BinanceRequestException, BinanceAPIException3
         """
         assets = self._request_website('get', 'bapi/asset/v2/public/asset/asset/get-all-asset')
         return assets
+
+    def get_prices(self) -> Dict:
+        """Return the recent prices of all symbols (including delisted)
+        :returns: dict - List of dictionaries with price, symbol and timestamp
+        :raises: BinanceRequestException, BinanceAPIException3
+        """
+        prices = self._request_website('get', 'bapi/margin/v1/public/margin/all-price-index')
+        return prices
+
+    def get_hot_assets(self) -> Dict:
+        """Return list of top 20 popular assets currently on Binance
+        :returns: dict - List of asset dictionaries
+        :raises: BinanceRequestException, BinanceAPIException3
+        """
+        hot_assets = self._request_website('get', 'bapi/composite/v1/public/market/hot-coins?currency=USD')
+        return hot_assets
+
+    def get_support_assets(self) -> Dict:
+        """Return supported assets in different categories (main, future, delivery, toption, fiat, card) currently on Binance
+        :returns: dict - dict of List of asset dictionaries
+        :raises: BinanceRequestException, BinanceAPIException3
+        """
+        support_assets = self._request_website('get', 'bapi/asset/v1/public/asset-service/wallet/get-support-asset')
+        return support_assets
+
+    def get_flexible_loan_assets(self) -> Dict:
+        """Return supported collateral and loan assets in flexible loan
+        :returns: dict - dict of List of collateralCoins and List of loanCoins
+        :raises: BinanceRequestException, BinanceAPIException3
+        """
+        flexible_loan_assets = self._request_website('get', 'bapi/margin/v1/friendly/flexibleLoan/isolated/config/supportedCoins')
+        return flexible_loan_assets
+
+    def get_fixed_term_loan_assets(self) -> Dict:
+        """Return supported collateral and loan assets in fixed term loan
+        :returns: dict - dict of List of collateralCoins dict and List of loanCoins
+        :raises: BinanceRequestException, BinanceAPIException3
+        """
+        fixed_term_loan_assets = self._request_website('post', 'bapi/margin/v1/friendly/collateral/loans/retail/coins')
+        return fixed_term_loan_assets
+
+    def get_loan_rates(self) -> Dict:
+        """Return loan rates in loan
+        :returns: dict - List of loan coin dicts of rates
+        :raises: BinanceRequestException, BinanceAPIException3
+        """
+        loan_rates = self._request_website('get', 'bapi/margin/v1/friendly/flexibleLoan/isolated/loanData/borrowMarket')
+        return loan_rates
+
+    def get_flexible_loan_coin_config(self, headers=None, **params) -> Dict:
+        """Return loan configs
+        :param headers: optional
+        :type headers: dict
+        :param collateralCoin: required
+        :type collateralCoin: str
+        :param loanCoin: required
+        :type loanCoin: str
+        :returns: dict - dict of collateralConfig and loanConfig dicts
+        :raises: BinanceRequestException, BinanceAPIException3
+        """
+        if headers:
+            flexible_loan_coin_configs = self._request_website('get', 'bapi/margin/v1/friendly/flexibleLoan/isolated/config/coinConfig', headers=headers, data=params)
+            return flexible_loan_coin_configs
+        else:
+            flexible_loan_coin_configs = self._request_website('get', 'bapi/margin/v1/friendly/flexibleLoan/isolated/config/coinConfig', data=params)
+            return flexible_loan_coin_configs
+
+    def get_fixed_term_loan_coin_config(self, headers=None, **params) -> Dict:
+        """Return loan configs
+        :param headers: optional
+        :type headers: dict
+        :param collateralCoin: required
+        :type collateralCoin: str
+        :param loanCoin: required
+        :type loanCoin: str
+        :param loanTerm: required
+        :type loanTerm: int
+        :returns: dict - dict of collateralConfig and loanConfig dicts
+        :raises: BinanceRequestException, BinanceAPIException3
+        """
+        if headers:
+            fixed_term_loan_coin_configs = self._request_website('post', 'bapi/margin/v2/friendly/collateral/loans/retail/coin-config', headers=headers, data=params)
+            return fixed_term_loan_coin_configs
+        else:
+            fixed_term_loan_coin_configs = self._request_website('post', 'bapi/margin/v2/friendly/collateral/loans/retail/coin-config', data=params)
+            return fixed_term_loan_coin_configs
+
+    def get_fixed_loan_detail(self, headers=None, **params) -> Dict:
+        """Return loan configs
+        :param headers: optional
+        :type headers: dict
+        :param collateralCoin: required
+        :type collateralCoin: str
+        :param loanCoin: required
+        :type loanCoin: str
+        :param loanTerm: required
+        :type loanTerm: int
+        :param loanAmount: required
+        :type loanAmount: str
+        :returns: dict - dict of collateralConfig and loanConfig dicts
+        :raises: BinanceRequestException, BinanceAPIException3
+        """
+        if headers:
+            fixed_term_loan_detail = self._request_website('post', 'bapi/margin/v1/friendly/collateral/loans/retail/trial-calc-for-borrowing', headers=headers, data=params)
+            return fixed_term_loan_detail
+        else:
+            fixed_term_loan_detail = self._request_website('post', 'bapi/margin/v1/friendly/collateral/loans/retail/trial-calc-for-borrowing', data=params)
+            return fixed_term_loan_detail
+
+    def get_cross_margin_max_borrowable(self, headers=None, **params) -> Dict:
+        """Return max borrowable amount in cross margin
+        :param headers: optional
+        :type headers: dict
+        :param asset: required
+        :type asset: str
+        :returns: dict - dict of value
+        :raises: BinanceRequestException, BinanceAPIException3
+        """
+        if headers:
+            max_borrowable = self._request_website('get', 'bapi/margin/v1/private/margin/max-borrowable', headers=headers, data=params)
+            return max_borrowable
+        else:
+            max_borrowable = self._request_website('get', 'bapi/margin/v1/private/margin/max-borrowable', data=params)
+            return max_borrowable
+
+    def get_isolated_margin_max_borrowable(self, symbol, headers=None, **params) -> Dict:
+        """Return max borrowable amount in isolated margin
+        :param symbol: required
+        :type symbol: str
+        :param headers: optional
+        :type headers: dict
+        :param asset: required
+        :type asset: str
+        :returns: dict - dict of value
+        :raises: BinanceRequestException, BinanceAPIException3
+        """
+        if headers:
+            max_borrowable = self._request_website('get', 'bapi/margin/v1/private/isolated-margin/borrowable/' + symbol, headers=headers, data=params)
+            return max_borrowable
+        else:
+            max_borrowable = self._request_website('get', 'bapi/margin/v1/private/isolated-margin/borrowable/' + symbol, data=params)
+            return max_borrowable
+
+    def get_symbol_detail(self, **params) -> Dict:
+        """Return symbol detail
+        :param symbol: required
+        :type symbol: str
+        :returns: dict - asset info dictionaries
+        :raises: BinanceRequestException, BinanceAPIException3
+        """
+        symbol_detail = self._request_website('get', f'bapi/asset/v2/public/asset-service/product/get-product-by-symbol', data=params)
+        return symbol_detail
 
     def get_exchange_info(self, **params) -> Dict:
         """Return rate limits and list of symbols
