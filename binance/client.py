@@ -27,8 +27,8 @@ class BaseClient:
     BASE_API_URLS = [
         # 'https://api.binance.com',
         # 'https://api1.binance.com',
-        # 'https://api2.binance.com',
-        'https://api3.binance.com',
+        'https://api2.binance.com',
+        # 'https://api3.binance.com',
         'https://api4.binance.com'
         # 'https://api-gcp.binane.com'
     ]
@@ -673,7 +673,7 @@ class Client(BaseClient):
         :returns: dict - asset info dictionaries
         :raises: BinanceRequestException, BinanceAPIException3
         """
-        symbol_detail = self._request_website('get', f'bapi/asset/v2/public/asset-service/product/get-product-by-symbol', data=params)
+        symbol_detail = self._request_website('get', 'bapi/asset/v2/public/asset-service/product/get-product-by-symbol', data=params)
         return symbol_detail
 
     def get_exchange_info(self, **params) -> Dict:
