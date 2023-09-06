@@ -4607,6 +4607,12 @@ class Client(BaseClient):
         """
         return self._request_margin_api('get', 'loan/loanable/data', signed=True, data=params)
 
+    def get_all_flexible_loanable_assets(self, **params):
+        """Get interest rate and borrow limit of flexible loanable assets. The borrow limit is shown in USD value.
+        https://binance-docs.github.io/apidocs/spot/en/#get-flexible-loan-assets-data-user_data
+        """
+        return self._request_margin_api('get', 'loan/flexible/loanable/data', signed=True, data=params)
+
     # Convert Endpoints
 
     def get_convert_quote(self, **params):
