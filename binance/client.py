@@ -6101,6 +6101,11 @@ class AsyncClient(BaseClient):
 
     create_oco_order.__doc__ = Client.create_oco_order.__doc__
 
+    async def create_sor_order(self, **params):
+        return await self._post('sor/order', True, data=params)
+
+    create_sor_order.__doc__ = Client.create_sor_order.__doc__
+
     async def create_test_order(self, **params):
         return await self._post('order/test', True, data=params)
 
