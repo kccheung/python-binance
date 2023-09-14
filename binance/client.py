@@ -97,6 +97,7 @@ class BaseClient:
         self.GET_ACCOUNT_URLS = [f'{base_url}/api/v3/account' for base_url in self.BASE_API_URLS]
         self.GET_MY_TRADES_URLS = [f'{base_url}/api/v3/myTrades' for base_url in self.BASE_API_URLS]
         self.CREATE_MARGIN_ORDER_URLS = [f'{base_url}/sapi/v1/margin/order' for base_url in self.BASE_API_URLS]
+        self.CREATE_SOR_ORDER_URLS = [f'{base_url}/api/v3/sor/order' for base_url in self.BASE_API_URLS]
 
         self.base_api_url_location = 0
         self.base_api_url = self.BASE_API_URLS[0]
@@ -120,6 +121,7 @@ class BaseClient:
         self.get_account_url = self.GET_ACCOUNT_URLS[0]
         self.get_my_trades_url = self.GET_MY_TRADES_URLS[0]
         self.create_margin_order_url = self.CREATE_MARGIN_ORDER_URLS[0]
+        self.create_sor_order_url = self.CREATE_SOR_ORDER_URLS[0]
 
     def get_best_location(self, n_sample: int, timeout: float = REQUEST_TIMEOUT) -> int:
         total_elapseds = {i: 0 for i in range(self.N_BASE_API_URLS)}
@@ -202,6 +204,7 @@ class BaseClient:
             self.get_account_url = self.GET_ACCOUNT_URLS[location]
             self.get_my_trades_url = self.GET_MY_TRADES_URLS[location]
             self.create_margin_order_url = self.CREATE_MARGIN_ORDER_URLS[location]
+            self.create_sor_order_url = self.CREATE_SOR_ORDER_URLS[location]
 
             self.API_URL = f'{self.base_api_url}/api'
             self.MARGIN_API_URL = f'{self.base_api_url}/sapi'
@@ -1764,6 +1767,9 @@ class Client(BaseClient):
         :raises: BinanceRequestException, BinanceAPIException, BinanceOrderException, BinanceOrderMinAmountException, BinanceOrderMinPriceException, BinanceOrderMinTotalException, BinanceOrderUnknownSymbolException, BinanceOrderInactiveSymbolException
         """
         return self._post('sor/order', True, data=params)
+
+    def create_sor_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._post_signed_fast(self.create_sor_order_url, query_string, timeout)
 
     def create_test_order(self, **params):
         """Test new order creation and signature/recvWindow long. Creates and validates a new order but does not send it into the matching engine.
@@ -6105,6 +6111,9 @@ class AsyncClient(BaseClient):
         return await self._post('sor/order', True, data=params)
 
     create_sor_order.__doc__ = Client.create_sor_order.__doc__
+
+    async def create_sor_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._post_signed_fast(self.create_sor_order_url, query_string, timeout)
 
     async def create_test_order(self, **params):
         return await self._post('order/test', True, data=params)
