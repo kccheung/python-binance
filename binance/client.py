@@ -1682,6 +1682,89 @@ class Client(BaseClient):
         """
         return self._post('order/oco', True, data=params)
 
+    def create_sor_order(self, **params):
+        """Places an order using smart order routing (SOR).
+        https://binance-docs.github.io/apidocs/spot/en/#new-order-using-sor-trade
+        :param symbol: required
+        :type symbol: str
+        :param side: required
+        :type side: str
+        :param type: required
+        :type type: str
+        :param timeInForce: required if limit order
+        :type timeInForce: str
+        :param quantity: required
+        :type quantity: decimal
+        :param price: required
+        :type price: str
+        :param newClientOrderId: A unique id for the order. Automatically generated if not sent.
+        :type newClientOrderId: str
+        :param icebergQty: Used with LIMIT, STOP_LOSS_LIMIT, and TAKE_PROFIT_LIMIT to create an iceberg order.
+        :type icebergQty: decimal
+        :param newOrderRespType: Set the response JSON. ACK, RESULT, or FULL; default: RESULT.
+        :type newOrderRespType: str
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        Response ACK:
+        .. code-block:: python
+            {
+                "symbol":"LTCBTC",
+                "orderId": 1,
+                "clientOrderId": "myOrder1" # Will be newClientOrderId
+                "transactTime": 1499827319559
+            }
+        Response RESULT:
+        .. code-block:: python
+            {
+                "symbol": "BTCUSDT",
+                "orderId": 28,
+                "clientOrderId": "6gCrw2kRUAF9CvJDGP16IP",
+                "transactTime": 1507725176595,
+                "price": "0.00000000",
+                "origQty": "10.00000000",
+                "executedQty": "10.00000000",
+                "status": "FILLED",
+                "timeInForce": "GTC",
+                "type": "MARKET",
+                "side": "SELL"
+            }
+        Response FULL:
+        .. code-block:: python
+            {
+              "symbol": "BTCUSDT",
+              "orderId": 2,
+              "orderListId": -1,
+              "clientOrderId": "sBI1KM6nNtOfj5tccZSKly",
+              "transactTime": 1689149087774,
+              "price": "31000.00000000",
+              "origQty": "0.50000000",
+              "executedQty": "0.50000000",
+              "cummulativeQuoteQty": "14000.00000000",
+              "status": "FILLED",
+              "timeInForce": "GTC",
+              "type": "LIMIT",
+              "side": "BUY",
+              "workingTime": 1689149087774,
+              "fills": [
+                {
+                  "matchType": "ONE_PARTY_TRADE_REPORT",
+                  "price": "28000.00000000",
+                  "qty": "0.50000000",
+                  "commission": "0.00000000",
+                  "commissionAsset": "BTC",
+                  "tradeId": -1,
+                  "allocId": 0
+                }
+              ],
+              "workingFloor": "SOR",
+              "selfTradePreventionMode": "NONE",
+              "usedSor": true
+            }
+        :raises: BinanceRequestException, BinanceAPIException, BinanceOrderException, BinanceOrderMinAmountException, BinanceOrderMinPriceException, BinanceOrderMinTotalException, BinanceOrderUnknownSymbolException, BinanceOrderInactiveSymbolException
+        """
+        return self._post('sor/order', True, data=params)
+
     def create_test_order(self, **params):
         """Test new order creation and signature/recvWindow long. Creates and validates a new order but does not send it into the matching engine.
         https://binance-docs.github.io/apidocs/spot/en/#test-new-order-trade
