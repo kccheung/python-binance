@@ -4507,6 +4507,26 @@ class Client(BaseClient):
         """
         return self._request_margin_api('get', 'margin/isolatedMarginData', signed=True, data=params)
 
+    def get_margin_available_inventory(self, **params):
+        """Margin available Inventory query
+        https://binance-docs.github.io/apidocs/spot/en/#query-margin-available-inventory-user_data
+        :param type: required
+        :type type: str {MARGIN, ISOLATED}
+
+        :returns: API response
+
+        .. code-block:: python
+        {
+            "assets": {
+                "MATIC": "100000000",
+                "STPT": "100000000",
+                "TVK": "100000000",
+                "SHIB": "97409653"
+            }
+        }
+        """
+        return self._request_margin_api('get', 'margin/available-inventory', signed=True, data=params)
+
     # Saving Endpoints
 
     def get_lending_product_list(self, **params):
