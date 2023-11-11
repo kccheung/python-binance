@@ -1,5 +1,5 @@
 ======================================
-Welcome to python-binance v0.7.5-async
+Welcome to python-binance v0.7.6
 ======================================
 
 Note
