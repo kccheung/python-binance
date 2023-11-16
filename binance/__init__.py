@@ -4,7 +4,7 @@
 
 """
 
-__version__ = '0.7.5-async'
+__version__ = '0.7.6'
 
 from binance.client import Client, AsyncClient  # noqa
 from binance.depthcache import DepthCacheManager  # noqa

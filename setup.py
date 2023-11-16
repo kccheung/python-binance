@@ -4,7 +4,6 @@ import codecs
 import os
 import re
 
-
 with codecs.open(
         os.path.join(
             os.path.abspath(os.path.dirname(__file__)),
@@ -18,7 +17,7 @@ with codecs.open(
 
 setup(
     name='python-binance',
-    version='0.7.5-async',
+    version='0.7.6',
     packages=['binance'],
     description='Binance REST API python implementation',
     url='https://github.com/sammchardy/python-binance',
