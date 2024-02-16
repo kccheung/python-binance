@@ -75,6 +75,7 @@ class BaseClient:
             elif len(api_secret) > 64:
                 self.API_SECRET = serialization.load_pem_private_key(api_secret, password=pwd)
                 self._sign = self._rsa
+        self.use_sbe = use_sbe
         self.session = self._init_session()
         if requests_params:
             self._requests_params = requests_params
@@ -82,7 +83,6 @@ class BaseClient:
             self._requests_params = {}
         self.response = None
         self.timestamp_offset = 0 if timestamp_offset is None else timestamp_offset
-        self.use_sbe = use_sbe
 
         self.N_BASE_API_URLS = len(self.BASE_API_URLS)
         self.GET_EXCHANGE_INFO_URLS = [f'{base_url}/api/v3/exchangeInfo' for base_url in self.BASE_API_URLS]
