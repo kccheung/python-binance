@@ -374,6 +374,8 @@ class Client(BaseClient):
 
     def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None, use_sbe=False):
         super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd, use_sbe)
+        if use_sbe:
+            self.API_URL = self.API_TESTNET_URL
         self._handle_response = self._handle_response_sbe if use_sbe else self._handle_response_json
         self._handle_response2 = self._handle_response_json2
         self._handle_response3 = self._handle_response_json3
