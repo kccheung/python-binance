@@ -44,9 +44,12 @@ class BaseClient:
     FUTURES_API_VERSION = 'v1'
     FUTURES_COIN_API_VERSION = 'v1'
 
+    SBE_SCHEMA_ID = 1
+    SBE_SCHEMA_VERSION = 0
+
     REQUEST_TIMEOUT: float = 5
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None, tld='com'):
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None, use_sbe=False, tld='com'):
         """Binance API Client constructor
         :param api_key: Api Key
         :type api_key: str.
@@ -79,6 +82,7 @@ class BaseClient:
             self._requests_params = {}
         self.response = None
         self.timestamp_offset = 0 if timestamp_offset is None else timestamp_offset
+        self.use_sbe = use_sbe
 
         self.N_BASE_API_URLS = len(self.BASE_API_URLS)
         self.GET_EXCHANGE_INFO_URLS = [f'{base_url}/api/v3/exchangeInfo' for base_url in self.BASE_API_URLS]
@@ -217,6 +221,9 @@ class BaseClient:
         if self.API_KEY:
             assert self.API_KEY
             headers['X-MBX-APIKEY'] = self.API_KEY
+        if self.use_sbe:
+            headers['Accept'] = 'application/sbe'
+            headers['X-MBX-SBE'] = f'{self.SBE_SCHEMA_ID}:{self.SBE_SCHEMA_VERSION}'
         return headers
 
     def _init_session(self):
@@ -365,8 +372,8 @@ class BaseClient:
 
 class Client(BaseClient):
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None):
-        super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd)
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None, use_sbe=False):
+        super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd, use_sbe)
         # init DNS and SSL cert
         self.ping_fast()
         if timestamp_offset is None:
@@ -5608,15 +5615,15 @@ class AsyncClient(BaseClient):
 
     def __init__(
             self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None,
-            requests_params=None, pwd=None, tld: str = 'com', loop=None
+            requests_params=None, pwd=None, use_sbe=False, tld: str = 'com', loop=None
     ):
 
         self.loop = loop or asyncio.get_event_loop()
-        super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd, tld)
+        super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd, use_sbe, tld)
 
     @classmethod
-    async def create(cls, api_key='', api_secret='', timestamp_offset=None, requests_params=None, pwd=None, tld='com', loop=None):
-        self = cls(api_key, api_secret, timestamp_offset, requests_params, pwd, tld, loop)
+    async def create(cls, api_key='', api_secret='', timestamp_offset=None, requests_params=None, pwd=None, use_sbe=False, tld='com', loop=None):
+        self = cls(api_key, api_secret, timestamp_offset, requests_params, pwd, use_sbe, tld, loop)
         await self.ping_fast()
         return self
 
