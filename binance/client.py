@@ -374,6 +374,9 @@ class Client(BaseClient):
 
     def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None, use_sbe=False):
         super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd, use_sbe)
+        self._handle_response = self._handle_response_sbe if use_sbe else self._handle_response_json
+        self._handle_response2 = self._handle_response_json2
+        self._handle_response3 = self._handle_response_json3
         # init DNS and SSL cert
         self.ping_fast()
         if timestamp_offset is None:
@@ -444,7 +447,21 @@ class Client(BaseClient):
         return self._handle_response2(self.response)
 
     @staticmethod
-    def _handle_response(response: requests.Response):
+    def _handle_response_sbe(response: requests.Response):
+        """Internal helper for handling API responses from the Binance server.
+        Raises the appropriate exceptions when necessary; otherwise, returns the
+        response.
+        """
+        return response
+        # if response.status_code < 400:
+        #     try:
+        #         return response
+        #     except Exception:
+        #         raise BinanceRequestException(f'Invalid Response: {response.text}')
+        # raise BinanceAPIException(response, response.status_code, response.text)
+
+    @staticmethod
+    def _handle_response_json(response: requests.Response):
         """Internal helper for handling API responses from the Binance server.
         Raises the appropriate exceptions when necessary; otherwise, returns the
         response.
@@ -457,7 +474,7 @@ class Client(BaseClient):
         raise BinanceAPIException(response, response.status_code, response.text)
 
     @staticmethod
-    def _handle_response2(response: requests.Response):
+    def _handle_response_json2(response: requests.Response):
         """Internal helper for handling API responses from the Binance server.
         Raises the appropriate exceptions when necessary; otherwise, returns the
         response.
@@ -470,7 +487,7 @@ class Client(BaseClient):
         raise BinanceAPIException2(response, response.status_code, response.text)
 
     @staticmethod
-    def _handle_response3(response: requests.Response):
+    def _handle_response_json3(response: requests.Response):
         """Internal helper for handling API responses from the Binance server.
         Raises the appropriate exceptions when necessary; otherwise, returns the
         response.
@@ -5620,6 +5637,8 @@ class AsyncClient(BaseClient):
 
         self.loop = loop or asyncio.get_event_loop()
         super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd, use_sbe, tld)
+        self._handle_response = self._handle_response_sbe if use_sbe else self._handle_response_json
+        self._handle_response2 = self._handle_response_json2
 
     @classmethod
     async def create(cls, api_key='', api_secret='', timestamp_offset=None, requests_params=None, pwd=None, use_sbe=False, tld='com', loop=None):
@@ -5700,7 +5719,26 @@ class AsyncClient(BaseClient):
             self.response = response
             return await self._handle_response2(self.response)
 
-    async def _handle_response(self, response: aiohttp.ClientResponse):
+    async def _handle_response_sbe(self, response: aiohttp.ClientResponse):
+        """Internal helper for handling API responses from the Binance server.
+        Raises the appropriate exceptions when necessary; otherwise, returns the
+        response.
+        """
+        return await response
+        # if response.status < 400:
+        #     try:
+        #         return await response.json()
+        #     except ValueError:
+        #         try:
+        #             txt = await response.text()
+        #             raise BinanceRequestException(f'Invalid Response: {txt}')
+        #         except Exception:
+        #             raise BinanceRequestException(f'Invalid Response with status {response.status}')
+        #     except Exception:
+        #         raise BinanceRequestException(f'Invalid Response with status {response.status}')
+        # raise BinanceAPIException(response, response.status, await response.text())
+
+    async def _handle_response_json(self, response: aiohttp.ClientResponse):
         """Internal helper for handling API responses from the Binance server.
         Raises the appropriate exceptions when necessary; otherwise, returns the
         response.
@@ -5718,7 +5756,7 @@ class AsyncClient(BaseClient):
                 raise BinanceRequestException(f'Invalid Response with status {response.status}')
         raise BinanceAPIException(response, response.status, await response.text())
 
-    async def _handle_response2(self, response: aiohttp.ClientResponse):
+    async def _handle_response_json2(self, response: aiohttp.ClientResponse):
         """Internal helper for handling API responses from the Binance server.
         Raises the appropriate exceptions when necessary; otherwise, returns the
         response.
