@@ -44,12 +44,9 @@ class BaseClient:
     FUTURES_API_VERSION = 'v1'
     FUTURES_COIN_API_VERSION = 'v1'
 
-    SBE_SCHEMA_ID = 1
-    SBE_SCHEMA_VERSION = 0
-
     REQUEST_TIMEOUT: float = 5
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None, use_sbe=False, tld='com'):
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None, tld='com'):
         """Binance API Client constructor
         :param api_key: Api Key
         :type api_key: str.
@@ -75,7 +72,6 @@ class BaseClient:
             elif len(api_secret) > 64:
                 self.API_SECRET = serialization.load_pem_private_key(api_secret, password=pwd)
                 self._sign = self._rsa
-        self.use_sbe = use_sbe
         self.session = self._init_session()
         if requests_params:
             self._requests_params = requests_params
@@ -221,9 +217,6 @@ class BaseClient:
         if self.API_KEY:
             assert self.API_KEY
             headers['X-MBX-APIKEY'] = self.API_KEY
-        if self.use_sbe:
-            headers['Accept'] = 'application/sbe'
-            headers['X-MBX-SBE'] = f'{self.SBE_SCHEMA_ID}:{self.SBE_SCHEMA_VERSION}'
         return headers
 
     def _init_session(self):
@@ -372,13 +365,8 @@ class BaseClient:
 
 class Client(BaseClient):
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None, use_sbe=False):
-        super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd, use_sbe)
-        if use_sbe:
-            self.API_URL = self.API_TESTNET_URL
-        self._handle_response = self._handle_response_sbe if use_sbe else self._handle_response_json
-        self._handle_response2 = self._handle_response_json2
-        self._handle_response3 = self._handle_response_json3
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None):
+        super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd)
         # init DNS and SSL cert
         self.ping_fast()
         if timestamp_offset is None:
@@ -449,21 +437,7 @@ class Client(BaseClient):
         return self._handle_response2(self.response)
 
     @staticmethod
-    def _handle_response_sbe(response: requests.Response):
-        """Internal helper for handling API responses from the Binance server.
-        Raises the appropriate exceptions when necessary; otherwise, returns the
-        response.
-        """
-        return response
-        # if response.status_code < 400:
-        #     try:
-        #         return response
-        #     except Exception:
-        #         raise BinanceRequestException(f'Invalid Response: {response.text}')
-        # raise BinanceAPIException(response, response.status_code, response.text)
-
-    @staticmethod
-    def _handle_response_json(response: requests.Response):
+    def _handle_response(response: requests.Response):
         """Internal helper for handling API responses from the Binance server.
         Raises the appropriate exceptions when necessary; otherwise, returns the
         response.
@@ -476,7 +450,7 @@ class Client(BaseClient):
         raise BinanceAPIException(response, response.status_code, response.text)
 
     @staticmethod
-    def _handle_response_json2(response: requests.Response):
+    def _handle_response2(response: requests.Response):
         """Internal helper for handling API responses from the Binance server.
         Raises the appropriate exceptions when necessary; otherwise, returns the
         response.
@@ -489,7 +463,7 @@ class Client(BaseClient):
         raise BinanceAPIException2(response, response.status_code, response.text)
 
     @staticmethod
-    def _handle_response_json3(response: requests.Response):
+    def _handle_response3(response: requests.Response):
         """Internal helper for handling API responses from the Binance server.
         Raises the appropriate exceptions when necessary; otherwise, returns the
         response.
@@ -5634,17 +5608,15 @@ class AsyncClient(BaseClient):
 
     def __init__(
             self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None,
-            requests_params=None, pwd=None, use_sbe=False, tld: str = 'com', loop=None
+            requests_params=None, pwd=None, tld: str = 'com', loop=None
     ):
 
         self.loop = loop or asyncio.get_event_loop()
-        super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd, use_sbe, tld)
-        self._handle_response = self._handle_response_sbe if use_sbe else self._handle_response_json
-        self._handle_response2 = self._handle_response_json2
+        super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd, tld)
 
     @classmethod
-    async def create(cls, api_key='', api_secret='', timestamp_offset=None, requests_params=None, pwd=None, use_sbe=False, tld='com', loop=None):
-        self = cls(api_key, api_secret, timestamp_offset, requests_params, pwd, use_sbe, tld, loop)
+    async def create(cls, api_key='', api_secret='', timestamp_offset=None, requests_params=None, pwd=None, tld='com', loop=None):
+        self = cls(api_key, api_secret, timestamp_offset, requests_params, pwd, tld, loop)
         await self.ping_fast()
         return self
 
@@ -5721,26 +5693,7 @@ class AsyncClient(BaseClient):
             self.response = response
             return await self._handle_response2(self.response)
 
-    async def _handle_response_sbe(self, response: aiohttp.ClientResponse):
-        """Internal helper for handling API responses from the Binance server.
-        Raises the appropriate exceptions when necessary; otherwise, returns the
-        response.
-        """
-        return await response
-        # if response.status < 400:
-        #     try:
-        #         return await response.json()
-        #     except ValueError:
-        #         try:
-        #             txt = await response.text()
-        #             raise BinanceRequestException(f'Invalid Response: {txt}')
-        #         except Exception:
-        #             raise BinanceRequestException(f'Invalid Response with status {response.status}')
-        #     except Exception:
-        #         raise BinanceRequestException(f'Invalid Response with status {response.status}')
-        # raise BinanceAPIException(response, response.status, await response.text())
-
-    async def _handle_response_json(self, response: aiohttp.ClientResponse):
+    async def _handle_response(self, response: aiohttp.ClientResponse):
         """Internal helper for handling API responses from the Binance server.
         Raises the appropriate exceptions when necessary; otherwise, returns the
         response.
@@ -5758,7 +5711,7 @@ class AsyncClient(BaseClient):
                 raise BinanceRequestException(f'Invalid Response with status {response.status}')
         raise BinanceAPIException(response, response.status, await response.text())
 
-    async def _handle_response_json2(self, response: aiohttp.ClientResponse):
+    async def _handle_response2(self, response: aiohttp.ClientResponse):
         """Internal helper for handling API responses from the Binance server.
         Raises the appropriate exceptions when necessary; otherwise, returns the
         response.
