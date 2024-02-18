@@ -3262,7 +3262,7 @@ class Client(BaseClient):
 
     def get_margin_asset(self, **params) -> Dict:
         """Query cross-margin asset
-        https://binance-docs.github.io/apidocs/spot/en/#query-margin-asset-market_data
+        https://binance-docs.github.io/apidocs/spot/en/#get-all-margin-assets-market_data
         :param asset: name of the asset
         :type asset: str
         .. code:: python
@@ -3279,11 +3279,11 @@ class Client(BaseClient):
             }
         :raises: BinanceRequestException, BinanceAPIException
         """
-        return self._request_margin_api('get', 'margin/asset', data=params)
+        return self._request_margin_api('get', 'margin/allAssets', data=params)
 
     def get_margin_symbol(self, **params) -> Dict:
         """Query cross-margin symbol info
-        https://binance-docs.github.io/apidocs/spot/en/#query-cross-margin-pair-market_data
+        https://binance-docs.github.io/apidocs/spot/en/#get-all-cross-margin-pairs-market_data
         :param symbol: name of the symbol pair
         :type symbol: str
         .. code:: python
@@ -3301,7 +3301,7 @@ class Client(BaseClient):
             }
         :raises: BinanceRequestException, BinanceAPIException
         """
-        return self._request_margin_api('get', 'margin/pair', data=params)
+        return self._request_margin_api('get', 'margin/allPairs', data=params)
 
     def create_isolated_margin_account(self, **params) -> Dict:
         """Create isolated margin account for symbol
@@ -3324,7 +3324,7 @@ class Client(BaseClient):
 
     def get_isolated_margin_symbol(self, **params) -> Dict:
         """Query isolated margin symbol info
-        https://binance-docs.github.io/apidocs/spot/en/#query-isolated-margin-symbol-user_data
+        https://binance-docs.github.io/apidocs/spot/en/#get-all-isolated-margin-symbol-user_data
         :param symbol: name of the symbol pair
         :type symbol: str
         :param recvWindow: optional, the number of milliseconds the request is valid for, no more than 60000
@@ -3341,7 +3341,7 @@ class Client(BaseClient):
             }
         :raises: BinanceRequestException, BinanceAPIException
         """
-        return self._request_margin_api('get', 'margin/isolated/pair', signed=True, data=params)
+        return self._request_margin_api('get', 'margin/isolated/allPairs', signed=True, data=params)
 
     def get_all_isolated_margin_symbols(self, **params) -> List[Dict]:
         """Query isolated margin symbol info for all pairs
@@ -3425,8 +3425,8 @@ class Client(BaseClient):
         return self._request_margin_api('get', 'margin/priceIndex', data=params)
 
     def transfer_margin_to_spot(self, **params) -> Dict:
-        """Execute transfer between cross-margin account and spot account.
-        https://binance-docs.github.io/apidocs/spot/en/#cross-margin-account-transfer-margin
+        """Execute transfer from cross-margin account to spot account.
+        https://binance-docs.github.io/apidocs/spot/en/#user-universal-transfer-user_data
         :param asset: name of the asset
         :type asset: str
         :param amount: amount to transfer
@@ -3442,12 +3442,12 @@ class Client(BaseClient):
             }
         :raises: BinanceRequestException, BinanceAPIException
         """
-        params['type'] = 2
-        return self._request_margin_api('post', 'margin/transfer', signed=True, data=params)
+        params['type'] = 'MARGIN_MAIN'
+        return self._request_margin_api('post', 'asset/transfer', signed=True, data=params)
 
     def transfer_spot_to_margin(self, **params) -> Dict:
-        """Execute transfer between spot account and cross-margin account.
-        https://binance-docs.github.io/apidocs/spot/en/#cross-margin-account-transfer-margin
+        """Execute transfer from spot account to cross-margin account.
+        https://binance-docs.github.io/apidocs/spot/en/#user-universal-transfer-user_data
         :param asset: name of the asset
         :type asset: str
         :param amount: amount to transfer
@@ -3463,9 +3463,33 @@ class Client(BaseClient):
             }
         :raises: BinanceRequestException, BinanceAPIException
         """
-        params['type'] = 1
-        return self._request_margin_api('post', 'margin/transfer', signed=True, data=params)
+        params['type'] = 'MAIN_MARGIN'
+        return self._request_margin_api('post', 'asset/transfer', signed=True, data=params)
 
+    def transfer_spot_to_isolated_margin(self, **params) -> Dict:
+        """Execute transfer from spot account to isolated-margin account.
+        https://binance-docs.github.io/apidocs/spot/en/#user-universal-transfer-user_data
+        :param asset: name of the asset
+        :type asset: str
+        :param amount: amount to transfer
+        :type amount: str
+        :param toSymbol: isolated symbol
+        :type toSymbol: str
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        .. code:: python
+            transfer = client.transfer_spot_to_margin(asset='BTC', amount='1.1')
+        :returns: API response
+        .. code-block:: python
+            {
+                "tranId": 100000001
+            }
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        params['type'] = 'MAIN_ISOLATED_MARGIN'
+        return self._request_margin_api('post', 'asset/transfer', signed=True, data=params)
+
+    # obsolete
     def transfer_isolated_margin_account(self, **params) -> Dict:
         """Transfer isolated margin
         https://binance-docs.github.io/apidocs/spot/en/#create-isolated-margin-account-margin
@@ -3496,7 +3520,7 @@ class Client(BaseClient):
 
     def create_margin_loan(self, **params) -> Dict:
         """Apply for a loan in cross-margin or isolated-margin account.
-        https://binance-docs.github.io/apidocs/spot/en/#margin-account-borrow-margin
+        https://binance-docs.github.io/apidocs/spot/en/#margin-account-borrow-repay-margin
         :param asset: name of the asset
         :type asset: str
         :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE"
@@ -3518,12 +3542,13 @@ class Client(BaseClient):
             }
         :raises: BinanceRequestException, BinanceAPIException
         """
-        return self._request_margin_api('post', 'margin/loan', signed=True, data=params)
+        params['type'] = 'BORROW'
+        return self._request_margin_api('post', 'margin/borrow-repay', signed=True, data=params)
 
     def repay_margin_loan(self, **params) -> Dict:
         """Repay loan in cross-margin or isolated-margin account.
         If amount is more than the amount borrowed, the full loan will be repaid.
-        https://binance-docs.github.io/apidocs/spot/en/#margin-account-repay-margin
+        https://binance-docs.github.io/apidocs/spot/en/#margin-account-borrow-repay-margin
         :param asset: name of the asset
         :type asset: str
         :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE"
@@ -3545,7 +3570,8 @@ class Client(BaseClient):
             }
         :raises: BinanceRequestException, BinanceAPIException
         """
-        return self._request_margin_api('post', 'margin/repay', signed=True, data=params)
+        params['type'] = 'REPAY'
+        return self._request_margin_api('post', 'margin/borrow-repay', signed=True, data=params)
 
     def create_margin_order(self, **params) -> Dict:
         """Post a new order for margin account.
@@ -3702,10 +3728,10 @@ class Client(BaseClient):
     def get_margin_loan_details(self, **params) -> Dict:
         """Query loan record
         txId or startTime must be sent. txId takes precedence.
-        https://binance-docs.github.io/apidocs/spot/en/#query-loan-record-user_data
+        https://binance-docs.github.io/apidocs/spot/en/#query-borrow-repay-records-in-margin-account-user_data
         :param asset: required
         :type asset: str
-        :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE", if isIsolated = "TRUE", symbol must be sent.
+        :param isolatedSymbol: optional, for isolated margin or not
         :type isIsolated: str
         :param txId: the tranId in of the created loan
         :type txId: str
@@ -3734,15 +3760,16 @@ class Client(BaseClient):
             }
         :raises: BinanceRequestException, BinanceAPIException
         """
-        return self._request_margin_api('get', 'margin/loan', signed=True, data=params)
+        params['type'] = 'BORROW'
+        return self._request_margin_api('get', 'margin/borrow-repay', signed=True, data=params)
 
     def get_margin_repay_details(self, **params) -> Dict:
         """Query repay record
         txId or startTime must be sent. txId takes precedence.
-        https://binance-docs.github.io/apidocs/spot/en/#query-repay-record-user_data
+        https://binance-docs.github.io/apidocs/spot/en/#query-borrow-repay-records-in-margin-account-user_data
         :param asset: required
         :type asset: str
-        :param isIsolated: optional, for isolated margin or not, "TRUE", "FALSE", default "FALSE"
+        :param isolatedSymbol: optional, for isolated margin or not
         :type isIsolated: str
         :param txId: the tranId in of the created loan
         :type txId: str
@@ -3774,7 +3801,8 @@ class Client(BaseClient):
             }
         :raises: BinanceRequestException, BinanceAPIException
         """
-        return self._request_margin_api('get', 'margin/repay', signed=True, data=params)
+        params['type'] = 'REPAY'
+        return self._request_margin_api('get', 'margin/borrow-repay', signed=True, data=params)
 
     def get_margin_order(self, **params) -> Dict:
         """Query margin accounts order
@@ -4378,6 +4406,7 @@ class Client(BaseClient):
         """
         return self._request_margin_api('get', 'margin/forceLiquidationRec', signed=True, data=params)
 
+    # obsolete
     def get_isolated_margin_transfer_history(self, **params):
         """Get isolated margin transfer history
         https://binance-docs.github.io/apidocs/spot/en/#get-isolated-margin-transfer-history-user_data
@@ -6354,27 +6383,33 @@ class AsyncClient(BaseClient):
     get_margin_account.__doc__ = Client.get_margin_account.__doc__
 
     async def get_margin_asset(self, **params):
-        return await self._request_margin_api('get', 'margin/asset', data=params)
+        return await self._request_margin_api('get', 'margin/allAssets', data=params)
 
     async def get_margin_symbol(self, **params):
-        return await self._request_margin_api('get', 'margin/pair', data=params)
+        return await self._request_margin_api('get', 'margin/allPairs', data=params)
 
     async def get_margin_price_index(self, **params):
         return await self._request_margin_api('get', 'margin/priceIndex', data=params)
 
     async def transfer_margin_to_spot(self, **params):
-        params['type'] = 2
-        return await self._request_margin_api('post', 'margin/transfer', signed=True, data=params)
+        params['type'] = 'MARGIN_MAIN'
+        return await self._request_margin_api('post', 'asset/transfer', signed=True, data=params)
 
     async def transfer_spot_to_margin(self, **params):
-        params['type'] = 1
-        return await self._request_margin_api('post', 'margin/transfer', signed=True, data=params)
+        params['type'] = 'MAIN_MARGIN'
+        return await self._request_margin_api('post', 'asset/transfer', signed=True, data=params)
+
+    async def transfer_spot_to_isolated_margin(self, **params):
+        params['type'] = 'MAIN_ISOLATED_MARGIN'
+        return await self._request_margin_api('post', 'asset/transfer', signed=True, data=params)
 
     async def create_margin_loan(self, **params):
-        return await self._request_margin_api('post', 'margin/loan', signed=True, data=params)
+        params['type'] = 'BORROW'
+        return await self._request_margin_api('post', 'margin/borrow-repay', signed=True, data=params)
 
     async def repay_margin_loan(self, **params):
-        return await self._request_margin_api('post', 'margin/repay', signed=True, data=params)
+        params['type'] = 'REPAY'
+        return await self._request_margin_api('post', 'margin/borrow-repay', signed=True, data=params)
 
     async def create_margin_order(self, **params):
         return await self._request_margin_api('post', 'margin/order', signed=True, data=params)
@@ -6386,10 +6421,12 @@ class AsyncClient(BaseClient):
         return await self._request_margin_api('delete', 'margin/order', signed=True, data=params)
 
     async def get_margin_loan_details(self, **params):
-        return await self._request_margin_api('get', 'margin/loan', signed=True, data=params)
+        params['type'] = 'BORROW'
+        return await self._request_margin_api('get', 'margin/borrow-repay', signed=True, data=params)
 
     async def get_margin_repay_details(self, **params):
-        return await self._request_margin_api('get', 'margin/repay', signed=True, data=params)
+        params['type'] = 'REPAY'
+        return await self._request_margin_api('get', 'margin/borrow-repay', signed=True, data=params)
 
     async def get_margin_order(self, **params):
         return await self._request_margin_api('get', 'margin/order', signed=True, data=params)
@@ -6455,9 +6492,11 @@ class AsyncClient(BaseClient):
     async def create_isolated_margin_account(self, **params):
         return await self._request_margin_api('post', 'margin/isolated/create', signed=True, data=params)
 
+    # obsolete
     async def transfer_isolated_margin_account(self, **params):
         return await self._request_margin_api('post', 'margin/isolated/transfer', signed=True, data=params)
 
+    # obsolete
     async def get_isolated_margin_transfer_history(self, **params):
         return await self._request_margin_api('get', 'margin/isolated/transfer', signed=True, data=params)
 
@@ -6468,7 +6507,7 @@ class AsyncClient(BaseClient):
         return await self._request_margin_api('get', 'margin/isolated/account', signed=True, data=params)
 
     async def get_isolated_margin_symbol(self, **params):
-        return await self._request_margin_api('get', 'margin/isolated/pair', signed=True, data=params)
+        return await self._request_margin_api('get', 'margin/isolated/allPairs', signed=True, data=params)
 
     async def get_all_isolated_margin_symbols(self, **params):
         return await self._request_margin_api('get', 'margin/isolated/allPairs', signed=True, data=params)
