@@ -41,6 +41,7 @@ class BaseClient:
     PUBLIC_API_VERSION = 'v3'
     PRIVATE_API_VERSION = 'v3'
     MARGIN_API_VERSION = 'v1'
+    MARGIN_API_VERSION2 = 'v2'
     FUTURES_API_VERSION = 'v1'
     FUTURES_COIN_API_VERSION = 'v1'
 
@@ -230,6 +231,9 @@ class BaseClient:
 
     def _create_margin_api_uri(self, path) -> str:
         return self.MARGIN_API_URL + '/' + self.MARGIN_API_VERSION + '/' + path
+
+    def _create_margin_v2_api_uri(self, path) -> str:
+        return self.MARGIN_API_URL + '/' + self.MARGIN_API_VERSION2 + '/' + path
 
     def _create_website_uri(self, path: str) -> str:
         return self.WEBSITE_URL + '/' + path
@@ -490,6 +494,10 @@ class Client(BaseClient):
 
     def _request_margin_api(self, method, path, signed=False, **kwargs):
         uri = self._create_margin_api_uri(path)
+        return self._request(method, uri, signed, **kwargs)
+
+    def _request_margin_v2_api(self, method, path, signed=False, **kwargs):
+        uri = self._create_margin_v2_api_uri(path)
         return self._request(method, uri, signed, **kwargs)
 
     def _request_website(self, method, path, signed=False, **kwargs):
@@ -4749,7 +4757,7 @@ class Client(BaseClient):
         """Get interest rate and borrow limit of flexible loanable assets. The borrow limit is shown in USD value.
         https://binance-docs.github.io/apidocs/spot/en/#get-flexible-loan-assets-data-user_data
         """
-        return self._request_margin_api('get', 'loan/flexible/loanable/data', signed=True, data=params)
+        return self._request_margin_v2_api('get', 'loan/flexible/loanable/data', signed=True, data=params)
 
     # Convert Endpoints
 
@@ -5772,6 +5780,10 @@ class AsyncClient(BaseClient):
 
     async def _request_margin_api(self, method, path, signed=False, **kwargs) -> Dict:
         uri = self._create_margin_api_uri(path)
+        return await self._request(method, uri, signed, **kwargs)
+
+    async def _request_margin_v2_api(self, method, path, signed=False, **kwargs) -> Dict:
+        uri = self._create_margin_v2_api_uri(path)
         return await self._request(method, uri, signed, **kwargs)
 
     async def _request_website(self, method, path, signed=False, **kwargs) -> Dict:
