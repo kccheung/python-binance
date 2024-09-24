@@ -4759,6 +4759,32 @@ class Client(BaseClient):
         """
         return self._request_margin_v2_api('get', 'loan/flexible/loanable/data', signed=True, data=params)
 
+    # VIP Loans Endpoints
+
+    def get_vip_loan_interest_data(self, **params):
+        """Get Borrow Interest Rate
+        https://developers.binance.com/docs/vip_loan/market-data
+        """
+        return self._request_margin_api('get', 'loan/vip/request/interestRate', signed=True, data=params)
+
+    def get_vip_loanable_assets(self, **params):
+        """Get interest rate and borrow limit of VIP loanable assets. The borrow limit is shown in USD value.
+        https://developers.binance.com/docs/vip_loan/market-data/Get-Loanable-Assets-Data
+        """
+        return self._request_margin_api('get', 'loan/vip/loanable/data', signed=True, data=params)
+
+    def get_vip_collateral_data(self, **params):
+        """Get Collateral Asset Data
+        https://developers.binance.com/docs/vip_loan/market-data/Get-Collateral-Asset-Data
+        """
+        return self._request_margin_api('get', 'loan/vip/loanable/data', signed=True, data=params)
+
+    def get_vip_collateral_value(self, **params):
+        """Check Locked Value of VIP Collateral Account
+        https://developers.binance.com/docs/vip_loan/user-information/Check-Locked-Value-of-VIP-Collateral-Account
+        """
+        return self._request_margin_api('get', 'loan/vip/loanable/account', signed=True, data=params)
+
     # Convert Endpoints
 
     def get_convert_quote(self, **params):
