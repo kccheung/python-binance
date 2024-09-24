@@ -4777,13 +4777,13 @@ class Client(BaseClient):
         """Get Collateral Asset Data
         https://developers.binance.com/docs/vip_loan/market-data/Get-Collateral-Asset-Data
         """
-        return self._request_margin_api('get', 'loan/vip/loanable/data', signed=True, data=params)
+        return self._request_margin_api('get', 'loan/vip/collateral/data', signed=True, data=params)
 
     def get_vip_collateral_value(self, **params):
         """Check Locked Value of VIP Collateral Account
         https://developers.binance.com/docs/vip_loan/user-information/Check-Locked-Value-of-VIP-Collateral-Account
         """
-        return self._request_margin_api('get', 'loan/vip/loanable/account', signed=True, data=params)
+        return self._request_margin_api('get', 'loan/vip/collateral/account', signed=True, data=params)
 
     # Convert Endpoints
 
