@@ -1077,7 +1077,7 @@ class Client(BaseClient):
                 yield t
             last_id = trades[-1][AGG_ID]
 
-    def get_klines(self, **params) -> Dict:
+    def get_klines(self, **params):
         """Kline/candlestick bars for a symbol. Klines are uniquely identified by their open time.
         https://binance-docs.github.io/apidocs/spot/en/#kline-candlestick-data
         :param symbol: required
@@ -1112,7 +1112,7 @@ class Client(BaseClient):
         """
         return self._get('klines', data=params)
 
-    def _klines(self, klines_type: HistoricalKlinesType = HistoricalKlinesType.SPOT, **params) -> Dict:
+    def _klines(self, klines_type: HistoricalKlinesType = HistoricalKlinesType.SPOT, **params):
         """Get klines of spot (get_klines) or futures (futures_klines) endpoints.
         :param klines_type: Historical klines type: SPOT or FUTURES
         :type klines_type: HistoricalKlinesType
@@ -5984,12 +5984,12 @@ class AsyncClient(BaseClient):
 
     aggregate_trade_iter.__doc__ = Client.aggregate_trade_iter.__doc__
 
-    async def get_klines(self, **params) -> Dict:
+    async def get_klines(self, **params):
         return await self._get('klines', data=params)
 
     get_klines.__doc__ = Client.get_klines.__doc__
 
-    async def _klines(self, klines_type: HistoricalKlinesType = HistoricalKlinesType.SPOT, **params) -> Dict:
+    async def _klines(self, klines_type: HistoricalKlinesType = HistoricalKlinesType.SPOT, **params):
         if 'endTime' in params and not params['endTime']:
             del params['endTime']
         if HistoricalKlinesType.SPOT == klines_type:
