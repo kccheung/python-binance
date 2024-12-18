@@ -401,7 +401,7 @@ class Client(BaseClient):
         return self._handle_response(self.response)
 
     def _request_fast_mus(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
-        self.response = getattr(self.session, method)(uri, params=query_string, timeout=timeout, header={'X-MBX-TIME-UNIT': 'MICROSECOND'})
+        self.response = getattr(self.session, method)(uri, params=query_string, timeout=timeout, headers={'X-MBX-TIME-UNIT': 'MICROSECOND'})
         return self._handle_response(self.response)
 
     def _request_fast2(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
