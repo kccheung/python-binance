@@ -400,6 +400,10 @@ class Client(BaseClient):
         self.response = getattr(self.session, method)(uri, params=query_string, timeout=timeout)
         return self._handle_response(self.response)
 
+    def _request_fast_mus(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        self.response = getattr(self.session, method)(uri, params=query_string, timeout=timeout, header={'X-MBX-TIME-UNIT': 'MICROSECOND'})
+        return self._handle_response(self.response)
+
     def _request_fast2(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         self.response = getattr(self.session, method)(uri, params=query_string, timeout=timeout)
         return self._handle_response2(self.response)
@@ -1001,6 +1005,9 @@ class Client(BaseClient):
 
     def get_aggregate_trades_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
         return self._request_fast('get', self.get_aggregate_trades_url, query_string, timeout)
+
+    def get_aggregate_trades_fast_mus(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return self._request_fast_mus('get', self.get_aggregate_trades_url, query_string, timeout)
 
     def aggregate_trade_iter(self, symbol: str, start_str=None, last_id=None):
         """Iterate over aggregate trade data from (start_time or last_id) to
@@ -5928,6 +5935,9 @@ class AsyncClient(BaseClient):
 
     async def get_aggregate_trades_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
         return await self._request_fast('get', self.get_aggregate_trades_url, query_string, timeout)
+
+    async def get_aggregate_trades_fast_mus(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return await self._request_fast_mus('get', self.get_aggregate_trades_url, query_string, timeout)
 
     async def aggregate_trade_iter(self, symbol, start_str=None, last_id=None):
         if start_str is not None and last_id is not None:
