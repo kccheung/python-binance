@@ -5721,6 +5721,11 @@ class AsyncClient(BaseClient):
             self.response = response
             return await self._handle_response(self.response)
 
+    async def _request_fast_mus(self, method, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        async with getattr(self.session, method)(uri, params=query_string, timeout=timeout, headers={'X-MBX-TIME-UNIT': 'MICROSECOND'}) as response:
+            self.response = response
+            return await self._handle_response(self.response)
+
     async def _get_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
         async with self.session.get(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout) as response:
