@@ -5681,15 +5681,15 @@ class AsyncClient(BaseClient):
 
     def __init__(
             self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None,
-            requests_params=None, pwd=None, tld: str = 'com', loop=None
+            requests_params=None, pwd=None, time_unit_mus=False, tld: str = 'com', loop=None
     ):
 
         self.loop = loop or asyncio.get_event_loop()
-        super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd, tld)
+        super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd, time_unit_mus, tld)
 
     @classmethod
-    async def create(cls, api_key='', api_secret='', timestamp_offset=None, requests_params=None, pwd=None, tld='com', loop=None):
-        self = cls(api_key, api_secret, timestamp_offset, requests_params, pwd, tld, loop)
+    async def create(cls, api_key='', api_secret='', timestamp_offset=None, requests_params=None, pwd=None, time_unit_mus=False, tld='com', loop=None):
+        self = cls(api_key, api_secret, timestamp_offset, requests_params, pwd, time_unit_mus, tld, loop)
         await self.ping_fast()
         return self
 
