@@ -65,6 +65,7 @@ class BaseClient:
 
         self.API_KEY = api_key
         self.API_SECRET = None
+        self.TIME_UNIT_MUS = time_unit_mus
         self._sign = self._no_sign
         if api_secret:
             if len(api_secret) == 64:
@@ -80,7 +81,6 @@ class BaseClient:
             self._requests_params = {}
         self.response = None
         self.timestamp_offset = 0 if timestamp_offset is None else timestamp_offset
-        self.TIME_UNIT_MUS = time_unit_mus
 
         self.N_BASE_API_URLS = len(self.BASE_API_URLS)
         self.GET_EXCHANGE_INFO_URLS = [f'{base_url}/api/v3/exchangeInfo' for base_url in self.BASE_API_URLS]
