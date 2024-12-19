@@ -47,7 +47,7 @@ class BaseClient:
 
     REQUEST_TIMEOUT: float = 5
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None, tld='com'):
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None, tld='com', time_unit_mus=False):
         """Binance API Client constructor
         :param api_key: Api Key
         :type api_key: str.
@@ -80,6 +80,7 @@ class BaseClient:
             self._requests_params = {}
         self.response = None
         self.timestamp_offset = 0 if timestamp_offset is None else timestamp_offset
+        self.TIME_UNIT_MUS = time_unit_mus
 
         self.N_BASE_API_URLS = len(self.BASE_API_URLS)
         self.GET_EXCHANGE_INFO_URLS = [f'{base_url}/api/v3/exchangeInfo' for base_url in self.BASE_API_URLS]
@@ -218,6 +219,8 @@ class BaseClient:
         if self.API_KEY:
             assert self.API_KEY
             headers['X-MBX-APIKEY'] = self.API_KEY
+        if self.TIME_UNIT_MUS:
+            headers['X-MBX-TIME-UNIT'] = 'MICROSECOND'
         return headers
 
     def _init_session(self):
