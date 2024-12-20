@@ -372,7 +372,7 @@ class BaseClient:
 
 class Client(BaseClient):
 
-    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None, time_unit_mus=True):
+    def __init__(self, api_key: Optional[str] = None, api_secret: Optional[Union[str, bytes]] = None, timestamp_offset: Optional[int] = None, requests_params=None, pwd=None, time_unit_mus=False):
         super().__init__(api_key, api_secret, timestamp_offset, requests_params, pwd, time_unit_mus)
         # init DNS and SSL cert
         self.ping_fast()
