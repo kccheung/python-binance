@@ -1084,6 +1084,22 @@ class BinanceSocketManager:
         path = f'streams={"/".join(streams)}'
         return self._get_socket(path, option, prefix='stream?')
 
+    def multiplex_socket_mus(self, streams: List[str], option: Optional[int] = None):
+        """Start a multiplexed socket using a list of socket names.
+        User stream sockets can not be included.
+        Symbols in socket name must be lowercase i.e bnbbtc@aggTrade, neobtc@ticker
+        Combined stream events are wrapped as follows: {"stream":"<streamName>","data":<rawPayload>}
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/web-socket-streams.md
+        :param streams: list of stream names in lower case
+        :type streams: list
+        :param option: base endpoint used, default 2 is data endpoint, 0 and 1 are the main endpoints
+        :type option: int
+        :returns: connection key string if successful, False otherwise
+        Message Format - see Binance API docs for all types
+        """
+        path = f'streams={"/".join(streams)}&timeUnit=microsecond'
+        return self._get_socket(path, option, prefix='stream?')
+
     def futures_multiplex_socket(self, streams: List[str], futures_type: FuturesType = FuturesType.USD_M):
         """Start a multiplexed socket using a list of socket names.
         User stream sockets can not be included.
