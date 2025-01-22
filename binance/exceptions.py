@@ -1,5 +1,5 @@
 # coding=utf-8
-import json
+import orjson
 
 
 class BinanceAPIException(Exception):
@@ -8,8 +8,8 @@ class BinanceAPIException(Exception):
         self.code = 0
         self.message = ''
         try:
-            json_res = json.loads(text)
-        except json.JSONDecodeError:
+            json_res = orjson.loads(text)
+        except orjson.JSONDecodeError:
             self.message = 'Invalid JSON error message from Binance: {}'.format(text)
         else:
             self.code = json_res['code']
@@ -29,8 +29,8 @@ class BinanceAPIException2(Exception):
         self.message = ''
         self.data = {}
         try:
-            json_res = json.loads(text)
-        except json.JSONDecodeError:
+            json_res = orjson.loads(text)
+        except orjson.JSONDecodeError:
             self.message = 'Invalid JSON error message from Binance: {}'.format(text)
         else:
             self.code = json_res['code']
@@ -53,8 +53,8 @@ class BinanceAPIException3(Exception):
         self.message_detail = {}
         self.data = {}
         try:
-            json_res = json.loads(text)
-        except json.JSONDecodeError:
+            json_res = orjson.loads(text)
+        except orjson.JSONDecodeError:
             self.message = 'Invalid JSON error message from Binance: {}'.format(text)
         else:
             if 'code' in json_res:
