@@ -1,5 +1,6 @@
 import asyncio
 import json
+import orjson
 import logging
 import time
 from enum import Enum
@@ -114,7 +115,7 @@ class ReconnectingWebsocket:
 
     def _handle_message(self, evt):
         try:
-            return json.loads(evt)
+            return orjson.loads(evt)
         except ValueError:
             self._log.debug(f'error parsing evt json:{evt}')
             return None

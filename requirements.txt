@@ -1,6 +1,7 @@
 aiohttp==3.6.2
 cryptography==40.0.1
 dateparser==0.6.0
+orjson==3.9.7
 pytest==5.3.3
 pytz==2017.3
 requests==2.22.0
