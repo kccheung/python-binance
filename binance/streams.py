@@ -191,14 +191,9 @@ class ReconnectingWebsocket:
                     if self._queue.empty():
                         return msgs
                     else:
-                        for _ in range(self._queue.qsize()):
-                            msgs.append(self._queue.get_nowait())
-                        return msgs
+                        return msgs + [self._queue.get_nowait() for _ in range(self._queue.qsize())]
                 else:
-                    msgs = []
-                    for _ in range(self._queue.qsize()):
-                        msgs.append(self._queue.get_nowait())
-                    return msgs
+                    return [self._queue.get_nowait() for _ in range(self._queue.qsize())]
             except asyncio.TimeoutError:
                 self._log.debug(f"no message in {self.TIMEOUT} seconds")
 
@@ -209,8 +204,11 @@ class ReconnectingWebsocket:
 
     async def before_reconnect(self):
         if self.ws:
-            await self._conn.__aexit__(None, None, None)
             self.ws = None
+
+        if self._conn and hasattr(self._conn, 'protocol'):
+            await self._conn.__aexit__(None, None, None)
+
         self._reconnects += 1
 
     async def _reconnect(self):
