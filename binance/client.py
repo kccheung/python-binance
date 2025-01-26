@@ -20,7 +20,7 @@ from yarl import URL
 from base64 import b64encode
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 
 class BaseClient:
@@ -71,7 +71,7 @@ class BaseClient:
             if len(api_secret) == 64:
                 self.API_SECRET = api_secret.encode()
                 self._sign = self._hmac
-            elif len(api_secret) > 200:
+            elif isinstance(api_secret, rsa.RSAPrivateKey):
                 self.API_SECRET = serialization.load_pem_private_key(api_secret, password=pwd)
                 self._sign = self._rsa
             else:
