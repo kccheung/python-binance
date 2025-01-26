@@ -71,9 +71,12 @@ class BaseClient:
             if len(api_secret) == 64:
                 self.API_SECRET = api_secret.encode()
                 self._sign = self._hmac
-            elif len(api_secret) > 64:
+            elif len(api_secret) > 100:
                 self.API_SECRET = serialization.load_pem_private_key(api_secret, password=pwd)
                 self._sign = self._rsa
+            else:
+                self.API_SECRET = serialization.load_pem_private_key(api_secret, password=pwd)
+                self._sign = self._ed25519
         self.session = self._init_session()
         if requests_params:
             self._requests_params = requests_params
@@ -252,6 +255,9 @@ class BaseClient:
 
     def _rsa(self, msg) -> str:
         return b64encode(self.API_SECRET.sign(msg.encode(), padding.PKCS1v15(), hashes.SHA256())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
+
+    def _ed25519(self, msg) -> str:
+        return b64encode(self.API_SECRET.sign(msg.encode())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
 
     def _no_sign(self, msg) -> str:
         return ''

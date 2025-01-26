@@ -100,7 +100,8 @@ class ReconnectingWebsocket:
         if self._exit_coro:
             await self._exit_coro(self._path)
         if self.ws:
-            self.ws.fail_connection()
+            # self.ws.fail_connection()
+            await self.ws.close()
         if self._conn and hasattr(self._conn, 'protocol'):
             await self._conn.__aexit__(exc_type, exc_val, exc_tb)
         self.ws = None
@@ -1171,7 +1172,7 @@ class BinanceSocketManager:
         if conn_key not in self._conns:
             return
 
-        del (self._conns[conn_key])
+        del self._conns[conn_key]
 
 
 class ThreadedWebsocketManager(ThreadedApiManager):
