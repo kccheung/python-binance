@@ -24,7 +24,7 @@ from cryptography.hazmat.primitives.asymmetric import padding
 
 
 KEEPALIVE_TIMEOUT = 5 * 60  # 5 minutes
-WS_API_TIMEOUT = 5 * 60  # 5 minutes
+WS_API_TIMEOUT = 60  # 1 minutes
 
 
 class WSListenerState(Enum):
