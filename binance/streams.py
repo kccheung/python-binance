@@ -318,6 +318,15 @@ class KeepAliveWebsocket(ReconnectingWebsocket):
             self._start_socket_timer()
 
 
+class ReconnectingWebsocketSBE(ReconnectingWebsocket):
+
+    def __init__(self, loop, url: str, path: Optional[str] = None, prefix: str = 'ws/', exit_coro=None):
+        super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro)
+
+    def _handle_message(self, evt):
+        return evt
+
+
 class BinanceWebsocketApi(ReconnectingWebsocket):
 
     WS_API_URL = 'wss://ws-api.binance.com:443/'
@@ -518,6 +527,8 @@ class BinanceWebsocketApi(ReconnectingWebsocket):
 class BinanceSocketManager:
     STREAM_URLS = ['wss://stream.binance.com:9443/', 'wss://stream.binance.com:443/']
     STREAM_TESTNET_URL = 'wss://testnet.binance.vision/'
+    SBE_STREAM_URLS = ['wss://stream-sbe.binance.com/', 'wss://stream-sbe.binance.com:9443/']
+    SBE_STREAM_TESTNET_URLS = ['wss://stream-sbe.testnet.binance.vision/', 'wss://stream-sbe.testnet.binance.vision:9443/']
     DATA_STREAM_URL = 'wss://data-stream.binance.vision/'
     DATA_STREAM_URL_OLD = 'wss://data-stream.binance.com/'
     FSTREAM_URL = 'wss://fstream.binance.com/'
@@ -536,9 +547,13 @@ class BinanceSocketManager:
         if option == 1:
             self._default_option = 1
             self._default_stream_url = self.STREAM_URLS[1]
+            self._default_sbe_stream_url = self.SBE_STREAM_URLS[1]
+            self._default_sbe_stream_testnet_url = self.SBE_STREAM_TESTNET_URLS[1]
         else:
             self._default_option = 0
             self._default_stream_url = self.STREAM_URLS[0]
+            self._default_sbe_stream_url = self.SBE_STREAM_URLS[0]
+            self._default_sbe_stream_testnet_url = self.SBE_STREAM_TESTNET_URLS[0]
         self._user_timeout = user_timeout
 
         self.testnet = False
@@ -552,6 +567,18 @@ class BinanceSocketManager:
             elif option == 3:
                 return self.DATA_STREAM_URL_OLD
         return self._default_stream_url
+
+    def _get_sbe_stream_url(self, option: Optional[int] = None):
+        if option:
+            if option in [0, 1]:
+                return self.SBE_STREAM_URLS[option]
+        return self._default_sbe_stream_url
+
+    def _get_sbe_stream_testnet_url(self, option: Optional[int] = None):
+        if option:
+            if option in [0, 1]:
+                return self.SBE_STREAM_TESTNET_URLS[option]
+        return self._default_sbe_stream_testnet_url
 
     def _get_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/'):
         conn_id = f'{BinanceSocketType.SPOT}{option if option in [0, 1, 2, 3] else self._default_option}{path}'
@@ -576,6 +603,30 @@ class BinanceSocketManager:
                 prefix=prefix,
                 exit_coro=self._stop_socket,
                 user_timeout=self._user_timeout
+            )
+        return self._conns[conn_id]
+
+    def _get_sbe_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/'):
+        conn_id = f'{BinanceSocketType.SPOT}{option if option in [0, 1] else self._default_option}{path}'
+        if conn_id not in self._conns:
+            self._conns[conn_id] = ReconnectingWebsocketSBE(
+                loop=self._loop,
+                path=path,
+                url=self._get_sbe_stream_url(option),
+                prefix=prefix,
+                exit_coro=self._stop_socket,
+            )
+        return self._conns[conn_id]
+
+    def _get_sbe_testnet_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/'):
+        conn_id = f'{BinanceSocketType.SPOT}{option if option in [0, 1] else self._default_option}{path}'
+        if conn_id not in self._conns:
+            self._conns[conn_id] = ReconnectingWebsocketSBE(
+                loop=self._loop,
+                path=path,
+                url=self._get_sbe_stream_testnet_url(option),
+                prefix=prefix,
+                exit_coro=self._stop_socket,
             )
         return self._conns[conn_id]
 
@@ -1083,6 +1134,38 @@ class BinanceSocketManager:
         """
         path = f'streams={"/".join(streams)}'
         return self._get_socket(path, option, prefix='stream?')
+
+    def multiplex_socket_sbe(self, streams: List[str], option: Optional[int] = None):
+        """Start a multiplexed socket using a list of socket names.
+        User stream sockets can not be included.
+        Symbols in socket name must be lowercase i.e bnbbtc@aggTrade, neobtc@ticker
+        Combined stream events are wrapped as follows: {"stream":"<streamName>","data":<rawPayload>}
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/web-socket-streams.md
+        :param streams: list of stream names in lower case
+        :type streams: list
+        :param option: base endpoint used, default 2 is data endpoint, 0 and 1 are the main endpoints
+        :type option: int
+        :returns: connection key string if successful, False otherwise
+        Message Format - see Binance API docs for all types
+        """
+        path = f'streams={"/".join(streams)}'
+        return self._get_sbe_socket(path, option, prefix='stream?')
+
+    def multiplex_socket_sbe_testnet(self, streams: List[str], option: Optional[int] = None):
+        """Start a multiplexed socket using a list of socket names.
+        User stream sockets can not be included.
+        Symbols in socket name must be lowercase i.e bnbbtc@aggTrade, neobtc@ticker
+        Combined stream events are wrapped as follows: {"stream":"<streamName>","data":<rawPayload>}
+        https://github.com/binance-exchange/binance-official-api-docs/blob/master/web-socket-streams.md
+        :param streams: list of stream names in lower case
+        :type streams: list
+        :param option: base endpoint used, default 2 is data endpoint, 0 and 1 are the main endpoints
+        :type option: int
+        :returns: connection key string if successful, False otherwise
+        Message Format - see Binance API docs for all types
+        """
+        path = f'streams={"/".join(streams)}'
+        return self._get_sbe_testnet_socket(path, option, prefix='stream?')
 
     def multiplex_socket_mus(self, streams: List[str], option: Optional[int] = None):
         """Start a multiplexed socket using a list of socket names.
