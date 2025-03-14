@@ -37,6 +37,7 @@ class WSListenerState(Enum):
 
 class BinanceSocketType(str, Enum):
     SPOT = 'S'
+    SPOT_SBE = 'B'
     USD_M_FUTURES = 'U'
     COIN_M_FUTURES = 'C'
     OPTIONS = 'V'
@@ -607,7 +608,7 @@ class BinanceSocketManager:
         return self._conns[conn_id]
 
     def _get_sbe_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/'):
-        conn_id = f'{BinanceSocketType.SPOT}{option if option in [0, 1] else self._default_option}{path}'
+        conn_id = f'{BinanceSocketType.SPOT_SBE}{option if option in [0, 1] else self._default_option}{path}'
         if conn_id not in self._conns:
             self._conns[conn_id] = ReconnectingWebsocketSBE(
                 loop=self._loop,
@@ -619,7 +620,7 @@ class BinanceSocketManager:
         return self._conns[conn_id]
 
     def _get_sbe_testnet_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/'):
-        conn_id = f'{BinanceSocketType.SPOT}{option if option in [0, 1] else self._default_option}{path}'
+        conn_id = f'{BinanceSocketType.SPOT_SBE}{option if option in [0, 1] else self._default_option}{path}'
         if conn_id not in self._conns:
             self._conns[conn_id] = ReconnectingWebsocketSBE(
                 loop=self._loop,
