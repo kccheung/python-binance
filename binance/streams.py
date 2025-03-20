@@ -321,8 +321,28 @@ class KeepAliveWebsocket(ReconnectingWebsocket):
 
 class ReconnectingWebsocketSBE(ReconnectingWebsocket):
 
-    def __init__(self, loop, url: str, path: Optional[str] = None, prefix: str = 'ws/', exit_coro=None):
+    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = None, prefix: str = 'ws/', exit_coro=None):
         super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro)
+        self._client = client
+
+    async def connect(self):
+        self.ws_state = WSListenerState.CONNECTING
+        await self._before_connect()
+        assert self._path
+        ws_url = self._url + self._prefix + self._path
+        self._conn = ws.connect(ws_url, close_timeout=0.1, ping_interval=None, extra_headers={'X-MBX-APIKEY': self._client.API_KEY})
+        try:
+            self.ws = await self._conn.__aenter__()
+        except:  # noqa
+            asyncio.ensure_future(self._reconnect(), loop=self._loop)
+            return
+        self.ws_state = WSListenerState.STREAMING
+        self._reconnects = 0
+        await self._after_connect()
+        self._reconnect_waiter.set()
+        if self._handle_read_loop:
+            await self._read_loop_finish.wait()
+        self._handle_read_loop = self._loop.call_soon_threadsafe(asyncio.create_task, self._read_loop())
 
     def _handle_message(self, evt):
         return evt
@@ -611,6 +631,7 @@ class BinanceSocketManager:
         conn_id = f'{BinanceSocketType.SPOT_SBE}{option if option in [0, 1] else self._default_option}{path}'
         if conn_id not in self._conns:
             self._conns[conn_id] = ReconnectingWebsocketSBE(
+                client=self._client,
                 loop=self._loop,
                 path=path,
                 url=self._get_sbe_stream_url(option),
@@ -623,6 +644,7 @@ class BinanceSocketManager:
         conn_id = f'{BinanceSocketType.SPOT_SBE}{option if option in [0, 1] else self._default_option}{path}'
         if conn_id not in self._conns:
             self._conns[conn_id] = ReconnectingWebsocketSBE(
+                client=self._client,
                 loop=self._loop,
                 path=path,
                 url=self._get_sbe_stream_testnet_url(option),
