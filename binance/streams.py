@@ -373,6 +373,25 @@ class UserDataWebsocket(ReconnectingWebsocket):
             await self._read_loop_finish.wait()
         self._handle_read_loop = self._loop.call_soon_threadsafe(asyncio.create_task, self._read_loop())
 
+    def _handle_message(self, evt):
+        try:
+            msg = orjson.loads(evt)
+            if 'id' in msg:
+                if msg['id'] == 'logon':
+                    if msg['status'] == 200:
+                        asyncio.ensure_future(self.subscribe(), loop=self._loop)
+                        return None
+                    else:
+                        asyncio.ensure_future(self.logon(), loop=self._loop)
+                elif msg['id'] == 'subscribe':
+                    if msg['status'] != 200:
+                        asyncio.ensure_future(self.subscribe(), loop=self._loop)
+                    return None
+            return msg
+        except ValueError:
+            self._log.debug(f'error parsing evt json:{evt}')
+            return None
+
     def _sign(self, msg) -> str:
         # default to ed25519
         return b64encode(self._client.API_SECRET.sign(msg.encode())).decode()
@@ -407,7 +426,6 @@ class UserDataWebsocket(ReconnectingWebsocket):
 
     async def _after_connect(self):
         await self.logon()
-        await self.subscribe()
 
 
 class UserDataWebsocketSBE(ReconnectingWebsocket):
