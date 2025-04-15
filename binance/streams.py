@@ -20,7 +20,7 @@ import hashlib
 import hmac
 from base64 import b64encode
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
 
 KEEPALIVE_TIMEOUT = 5 * 60  # 5 minutes
@@ -348,10 +348,101 @@ class ReconnectingWebsocketSBE(ReconnectingWebsocket):
         return evt
 
 
+class UserDataWebsocket(ReconnectingWebsocket):
+
+    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = None, prefix: str = 'ws-api/v3?returnRateLimits=false', exit_coro=None):
+        super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro)
+        self._client = client
+        self.timestamp_offset = client.timestamp_offset
+
+    def _sign(self, msg) -> str:
+        # default to ed25519
+        return b64encode(self._client.API_SECRET.sign(msg.encode())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
+
+    async def _request(self, rid: str, method: str, **params):
+        if params:
+            await self.send(json.dumps({'id': rid, 'method': method, 'params': params}))
+        else:
+            await self.send(json.dumps({'id': rid, 'method': method}))
+
+    async def _request_signed(self, rid: str, method: str, ai=0, **params):
+        params['apiKey'] = self._client.API_KEY
+        params['timestamp'] = int(time.time() * 1000 + self.timestamp_offset)
+        params['signature'] = self._sign('&'.join([f'{kv[0]}={kv[1]}' for kv in sorted(params.items())]))
+        await self.send(json.dumps({'id': rid, 'method': method, 'params': params}))
+
+    async def logon(self, **params):
+        await self._request_signed('logon', 'session.logon', **params)
+        return {'success': True}
+
+    async def logout(self):
+        await self._request('logout', 'session.logout')
+        return {'success': True}
+
+    async def subscribe(self):
+        await self._request('subscribe', 'userDataStream.subscribe')
+        return {'success': True}
+
+    async def unsubscribe(self):
+        await self._request('unsubscribe', 'userDataStream.unsubscribe')
+        return {'success': True}
+
+    async def _after_connect(self):
+        await self.logon()
+        await self.subscribe()
+
+
+class UserDataWebsocketSBE(ReconnectingWebsocket):
+
+    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = None, prefix: str = 'ws-api/v3?returnRateLimits=false&responseFormat=sbe&sbeSchemaId=3&sbeSchemaVersion=0', exit_coro=None):
+        super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro)
+        self._client = client
+        self.timestamp_offset = client.timestamp_offset
+
+    def _sign(self, msg) -> str:
+        # default to ed25519
+        return b64encode(self._client.API_SECRET.sign(msg.encode())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
+
+    def _handle_message(self, evt):
+        return evt
+
+    async def _request(self, rid: str, method: str, **params):
+        if params:
+            await self.send(json.dumps({'id': rid, 'method': method, 'params': params}))
+        else:
+            await self.send(json.dumps({'id': rid, 'method': method}))
+
+    async def _request_signed(self, rid: str, method: str, ai=0, **params):
+        params['apiKey'] = self._client.API_KEY
+        params['timestamp'] = int(time.time() * 1000 + self.timestamp_offset)
+        params['signature'] = self._sign('&'.join([f'{kv[0]}={kv[1]}' for kv in sorted(params.items())]))
+        await self.send(json.dumps({'id': rid, 'method': method, 'params': params}))
+
+    async def logon(self, **params):
+        await self._request_signed('logon', 'session.logon', **params)
+        return {'success': True}
+
+    async def logout(self):
+        await self._request('logout', 'session.logout')
+        return {'success': True}
+
+    async def subscribe(self):
+        await self._request('subscribe', 'userDataStream.subscribe')
+        return {'success': True}
+
+    async def unsubscribe(self):
+        await self._request('unsubscribe', 'userDataStream.unsubscribe')
+        return {'success': True}
+
+    async def _after_connect(self):
+        await self.logon()
+        await self.subscribe()
+
+
 class BinanceWebsocketApi(ReconnectingWebsocket):
 
     WS_API_URL = 'wss://ws-api.binance.com:443/'
-    WS_API_TESTNET_URL = 'wss://testnet.binance.vision/'
+    WS_API_TESTNET_URL = 'wss://ws-api.testnet.binance.vision/'
 
     def __init__(self, clients: List[AsyncClient], loop, prefix='ws-api/v3?returnRateLimits=false', exit_coro=None, user_timeout=None, testnet=False):
         self.ws_api_url = self.WS_API_TESTNET_URL if testnet else self.WS_API_URL
@@ -366,8 +457,10 @@ class BinanceWebsocketApi(ReconnectingWebsocket):
             if self.API_SECRETs[ai]:
                 if type(self.API_SECRETs[ai]) is bytes:
                     self._signs[ai] = self._hmac
-                else:
+                elif isinstance(self.API_SECRETs[ai], rsa.RSAPrivateKey):
                     self._signs[ai] = self._rsa
+                else:
+                    self._signs[ai] = self._ed25519
         self.timestamp_offset = clients[0].timestamp_offset
         self._user_timeout = user_timeout or WS_API_TIMEOUT
         self._timer = None
@@ -400,7 +493,10 @@ class BinanceWebsocketApi(ReconnectingWebsocket):
         return hmac.new(self.API_SECRETs[ai], msg.encode(), hashlib.sha256).hexdigest()
 
     def _rsa(self, msg, ai=0) -> str:
-        return b64encode(self.API_SECRETs[ai].sign(msg.encode(), padding.PKCS1v15(), hashes.SHA256())).decode()
+        return b64encode(self.API_SECRETs[ai].sign(msg.encode(), padding.PKCS1v15(), hashes.SHA256())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
+
+    def _ed25519(self, msg, ai=0) -> str:
+        return b64encode(self.API_SECRETs[ai].sign(msg.encode())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
 
     def _no_sign(self, msg, ai=0) -> str:
         return ''
@@ -429,6 +525,17 @@ class BinanceWebsocketApi(ReconnectingWebsocket):
             }
         """
         await self._request(rid, 'ping')
+        return {'success': True}
+
+    async def logon(self, ai=0, **params):
+        """
+        Only ONE api key can be logon per connection
+        """
+        await self._request_signed(f'logon_{ai}', 'session.logon', ai, **params)
+        return {'success': True}
+
+    async def logout(self):
+        await self._request('logout', 'session.logout')
         return {'success': True}
 
     async def create_order(self, ai=0, **params):
@@ -550,6 +657,8 @@ class BinanceSocketManager:
     STREAM_TESTNET_URL = 'wss://testnet.binance.vision/'
     SBE_STREAM_URLS = ['wss://stream-sbe.binance.com/', 'wss://stream-sbe.binance.com:9443/']
     SBE_STREAM_TESTNET_URLS = ['wss://stream-sbe.testnet.binance.vision/', 'wss://stream-sbe.testnet.binance.vision:9443/']
+    WS_API_URLS = ['wss://ws-api.binance.com:443/', 'wss://ws-api.binance.com:9443/']
+    WS_API_TESTNET_URL = 'wss://ws-api.testnet.binance.vision/'
     DATA_STREAM_URL = 'wss://data-stream.binance.vision/'
     DATA_STREAM_URL_OLD = 'wss://data-stream.binance.com/'
     FSTREAM_URL = 'wss://fstream.binance.com/'
@@ -568,11 +677,13 @@ class BinanceSocketManager:
         if option == 1:
             self._default_option = 1
             self._default_stream_url = self.STREAM_URLS[1]
+            self._default_ws_api_url = self.WS_API_URLS[1]
             self._default_sbe_stream_url = self.SBE_STREAM_URLS[1]
             self._default_sbe_stream_testnet_url = self.SBE_STREAM_TESTNET_URLS[1]
         else:
             self._default_option = 0
             self._default_stream_url = self.STREAM_URLS[0]
+            self._default_ws_api_url = self.WS_API_URLS[0]
             self._default_sbe_stream_url = self.SBE_STREAM_URLS[0]
             self._default_sbe_stream_testnet_url = self.SBE_STREAM_TESTNET_URLS[0]
         self._user_timeout = user_timeout
@@ -588,6 +699,12 @@ class BinanceSocketManager:
             elif option == 3:
                 return self.DATA_STREAM_URL_OLD
         return self._default_stream_url
+
+    def _get_ws_api_url(self, option: Optional[int] = None):
+        if option:
+            if option in [0, 1]:
+                return self.WS_API_URLS[option]
+        return self._default_ws_api_url
 
     def _get_sbe_stream_url(self, option: Optional[int] = None):
         if option:
@@ -613,7 +730,33 @@ class BinanceSocketManager:
             )
         return self._conns[conn_id]
 
+    def _get_account_socket_old(self, path: str, option: Optional[int] = None, prefix: str = 'ws/'):
+        conn_id = f'{BinanceSocketType.ACCOUNT}{option if option in [0, 1] else self._default_option}{path}'
+        if conn_id not in self._conns:
+            self._conns[conn_id] = KeepAliveWebsocket(
+                client=self._client,
+                loop=self._loop,
+                url=self._get_stream_url(option),
+                keepalive_type=path,
+                prefix=prefix,
+                exit_coro=self._stop_socket,
+                user_timeout=self._user_timeout
+            )
+        return self._conns[conn_id]
+
     def _get_account_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/'):
+        conn_id = f'{BinanceSocketType.ACCOUNT}{option if option in [0, 1] else self._default_option}{path}'
+        if conn_id not in self._conns:
+            self._conns[conn_id] = UserDataWebsocket(
+                client=self._client,
+                loop=self._loop,
+                url=self._get_ws_api_url(option),
+                prefix=prefix,
+                exit_coro=self._stop_socket
+            )
+        return self._conns[conn_id]
+
+    def _get_account_sbe_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/'):
         conn_id = f'{BinanceSocketType.ACCOUNT}{option if option in [0, 1] else self._default_option}{path}'
         if conn_id not in self._conns:
             self._conns[conn_id] = KeepAliveWebsocket(
