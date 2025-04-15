@@ -383,7 +383,7 @@ class UserDataWebsocket(ReconnectingWebsocket):
         else:
             await self.send(json.dumps({'id': rid, 'method': method}))
 
-    async def _request_signed(self, rid: str, method: str, ai=0, **params):
+    async def _request_signed(self, rid: str, method: str, **params):
         params['apiKey'] = self._client.API_KEY
         params['timestamp'] = int(time.time() * 1000 + self.timestamp_offset)
         params['signature'] = self._sign('&'.join([f'{kv[0]}={kv[1]}' for kv in sorted(params.items())]))
