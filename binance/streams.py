@@ -350,10 +350,28 @@ class ReconnectingWebsocketSBE(ReconnectingWebsocket):
 
 class UserDataWebsocket(ReconnectingWebsocket):
 
-    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = None, prefix: str = 'ws-api/v3?returnRateLimits=false', exit_coro=None):
+    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = 'v3?returnRateLimits=false', prefix: str = 'ws-api/', exit_coro=None):
         super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro)
         self._client = client
         self.timestamp_offset = client.timestamp_offset
+
+    async def connect(self):
+        self.ws_state = WSListenerState.CONNECTING
+        await self._before_connect()
+        ws_url = self._url + self._prefix
+        self._conn = ws.connect(ws_url, close_timeout=0.1, ping_interval=None)
+        try:
+            self.ws = await self._conn.__aenter__()
+        except:  # noqa
+            asyncio.ensure_future(self._reconnect(), loop=self._loop)
+            return
+        self.ws_state = WSListenerState.STREAMING
+        self._reconnects = 0
+        await self._after_connect()
+        self._reconnect_waiter.set()
+        if self._handle_read_loop:
+            await self._read_loop_finish.wait()
+        self._handle_read_loop = self._loop.call_soon_threadsafe(asyncio.create_task, self._read_loop())
 
     def _sign(self, msg) -> str:
         # default to ed25519
@@ -744,8 +762,8 @@ class BinanceSocketManager:
             )
         return self._conns[conn_id]
 
-    def _get_account_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false'):
-        conn_id = f'{BinanceSocketType.ACCOUNT}{option if option in [0, 1] else self._default_option}{path}'
+    def _get_account_socket(self, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false'):
+        conn_id = f'{BinanceSocketType.ACCOUNT}{option if option in [0, 1] else self._default_option}'
         if conn_id not in self._conns:
             self._conns[conn_id] = UserDataWebsocket(
                 client=self._client,
@@ -756,8 +774,8 @@ class BinanceSocketManager:
             )
         return self._conns[conn_id]
 
-    def _get_account_sbe_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false'):
-        conn_id = f'{BinanceSocketType.ACCOUNT}{option if option in [0, 1] else self._default_option}{path}'
+    def _get_account_sbe_socket(self, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false'):
+        conn_id = f'{BinanceSocketType.ACCOUNT}{option if option in [0, 1] else self._default_option}'
         if conn_id not in self._conns:
             self._conns[conn_id] = KeepAliveWebsocket(
                 client=self._client,
@@ -1372,7 +1390,8 @@ class BinanceSocketManager:
         :returns: connection key string if successful, False otherwise
         Message Format - see Binance API docs for all types
         """
-        return self._get_account_socket('user', option)
+        # return self._get_account_socket('user', option)
+        return self._get_account_socket(option)
 
     def margin_socket(self, option: Optional[int] = None):
         """Start a websocket for cross-margin data
