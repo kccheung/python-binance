@@ -380,13 +380,11 @@ class UserDataWebsocket(ReconnectingWebsocket):
                 if msg['id'] == 'logon':
                     if msg['status'] == 200:
                         asyncio.ensure_future(self.subscribe(), loop=self._loop)
-                        return None
                     else:
                         asyncio.ensure_future(self.logon(), loop=self._loop)
                 elif msg['id'] == 'subscribe':
                     if msg['status'] != 200:
                         asyncio.ensure_future(self.subscribe(), loop=self._loop)
-                    return None
             return msg
         except ValueError:
             self._log.debug(f'error parsing evt json:{evt}')
