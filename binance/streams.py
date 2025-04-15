@@ -744,7 +744,7 @@ class BinanceSocketManager:
             )
         return self._conns[conn_id]
 
-    def _get_account_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/'):
+    def _get_account_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false'):
         conn_id = f'{BinanceSocketType.ACCOUNT}{option if option in [0, 1] else self._default_option}{path}'
         if conn_id not in self._conns:
             self._conns[conn_id] = UserDataWebsocket(
@@ -756,7 +756,7 @@ class BinanceSocketManager:
             )
         return self._conns[conn_id]
 
-    def _get_account_sbe_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/'):
+    def _get_account_sbe_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false'):
         conn_id = f'{BinanceSocketType.ACCOUNT}{option if option in [0, 1] else self._default_option}{path}'
         if conn_id not in self._conns:
             self._conns[conn_id] = KeepAliveWebsocket(
