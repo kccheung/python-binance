@@ -376,7 +376,9 @@ class UserDataWebsocket(ReconnectingWebsocket):
     def _handle_message(self, evt):
         try:
             msg = orjson.loads(evt)
-            if 'id' in msg:
+            if 'event' in msg:
+                return msg['event']
+            elif 'id' in msg:
                 if msg['id'] == 'logon':
                     if msg['status'] == 200:
                         asyncio.ensure_future(self.subscribe(), loop=self._loop)
@@ -390,8 +392,6 @@ class UserDataWebsocket(ReconnectingWebsocket):
                     else:
                         asyncio.ensure_future(self.subscribe(), loop=self._loop)
                         return {'e': 'subscribe', 'r': f'unsuccessful: {msg["error"]["msg"]} ({msg["error"]["code"]})'}
-            elif 'event' in msg:
-                return msg['event']
             return None
         except ValueError:
             self._log.debug(f'error parsing evt json:{evt}')
@@ -1415,6 +1415,17 @@ class BinanceSocketManager:
         """
         # return self._get_account_socket('user', option)
         return self._get_account_socket(option)
+
+    def user_socket_old(self, option: Optional[int] = None):
+        """Start a websocket for user data
+            https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md
+            https://binance-docs.github.io/apidocs/spot/en/#listen-key-spot
+        :param option: base endpoint used, default 2 is data endpoint, 0 and 1 are the main endpoints
+        :type option: int
+        :returns: connection key string if successful, False otherwise
+        Message Format - see Binance API docs for all types
+        """
+        return self._get_account_socket_old('user', option)
 
     def margin_socket(self, option: Optional[int] = None):
         """Start a websocket for cross-margin data
