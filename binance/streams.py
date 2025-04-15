@@ -375,7 +375,7 @@ class UserDataWebsocket(ReconnectingWebsocket):
 
     def _sign(self, msg) -> str:
         # default to ed25519
-        return b64encode(self._client.API_SECRET.sign(msg.encode())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
+        return b64encode(self._client.API_SECRET.sign(msg.encode())).decode()
 
     async def _request(self, rid: str, method: str, **params):
         if params:
