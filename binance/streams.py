@@ -390,7 +390,6 @@ class UserDataWebsocket(ReconnectingWebsocket):
                     else:
                         asyncio.ensure_future(self.subscribe(), loop=self._loop)
                         return {'e': 'subscribe', 'r': f'unsuccessful: {msg["error"]["msg"]} ({msg["error"]["code"]})'}
-                    return None
             elif 'event' in msg:
                 return msg['event']
             return None
