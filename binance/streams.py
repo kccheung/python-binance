@@ -350,7 +350,7 @@ class ReconnectingWebsocketSBE(ReconnectingWebsocket):
 
 class UserDataWebsocket(ReconnectingWebsocket):
 
-    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = 'v3?returnRateLimits=false', prefix: str = 'ws-api/', exit_coro=None):
+    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = None, prefix: str = 'ws-api/v3?returnRateLimits=false', exit_coro=None):
         super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro)
         self._client = client
         self.timestamp_offset = client.timestamp_offset
@@ -385,14 +385,17 @@ class UserDataWebsocket(ReconnectingWebsocket):
                         return {'e': 'logon', 'r': 'successful'}
                     else:
                         asyncio.ensure_future(self.logon(), loop=self._loop)
-                        return {'e': 'logon', 'r': f'unsuccessful: {msg["error"]["msg"]} ({msg["error"]["code"]})'}
+                        return {'e': 'logon', 'r': f'unsuccessful: {msg["error"]["msg"]} ({msg["error"]["code"]:d})'}
                 elif msg['id'] == 'subscribe':
                     if msg['status'] == 200:
                         return {'e': 'subscribe', 'r': 'successful'}
                     else:
                         asyncio.ensure_future(self.subscribe(), loop=self._loop)
-                        return {'e': 'subscribe', 'r': f'unsuccessful: {msg["error"]["msg"]} ({msg["error"]["code"]})'}
-            return None
+                        return {'e': 'subscribe', 'r': f'unsuccessful: {msg["error"]["msg"]} ({msg["error"]["code"]:d})'}
+                else:
+                    return {'e': 'requestResponse', 'm': msg}
+            else:
+                return {'e': 'unknown', 'm': msg}
         except ValueError:
             self._log.debug(f'error parsing evt json:{evt}')
             return None
@@ -442,7 +445,25 @@ class UserDataWebsocketSBE(ReconnectingWebsocket):
 
     def _sign(self, msg) -> str:
         # default to ed25519
-        return b64encode(self._client.API_SECRET.sign(msg.encode())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
+        return b64encode(self._client.API_SECRET.sign(msg.encode())).decode()
+
+    async def connect(self):
+        self.ws_state = WSListenerState.CONNECTING
+        await self._before_connect()
+        ws_url = self._url + self._prefix
+        self._conn = ws.connect(ws_url, close_timeout=0.1, ping_interval=None)
+        try:
+            self.ws = await self._conn.__aenter__()
+        except:  # noqa
+            asyncio.ensure_future(self._reconnect(), loop=self._loop)
+            return
+        self.ws_state = WSListenerState.STREAMING
+        self._reconnects = 0
+        await self._after_connect()
+        self._reconnect_waiter.set()
+        if self._handle_read_loop:
+            await self._read_loop_finish.wait()
+        self._handle_read_loop = self._loop.call_soon_threadsafe(asyncio.create_task, self._read_loop())
 
     def _handle_message(self, evt):
         return evt
@@ -534,10 +555,10 @@ class BinanceWebsocketApi(ReconnectingWebsocket):
         return hmac.new(self.API_SECRETs[ai], msg.encode(), hashlib.sha256).hexdigest()
 
     def _rsa(self, msg, ai=0) -> str:
-        return b64encode(self.API_SECRETs[ai].sign(msg.encode(), padding.PKCS1v15(), hashes.SHA256())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
+        return b64encode(self.API_SECRETs[ai].sign(msg.encode(), padding.PKCS1v15(), hashes.SHA256())).decode()
 
     def _ed25519(self, msg, ai=0) -> str:
-        return b64encode(self.API_SECRETs[ai].sign(msg.encode())).decode().replace('=', '%3D').replace('/', '%2F').replace('+', '%2B')
+        return b64encode(self.API_SECRETs[ai].sign(msg.encode())).decode()
 
     def _no_sign(self, msg, ai=0) -> str:
         return ''
@@ -800,14 +821,12 @@ class BinanceSocketManager:
     def _get_account_sbe_socket(self, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false'):
         conn_id = f'{BinanceSocketType.ACCOUNT}{option if option in [0, 1] else self._default_option}'
         if conn_id not in self._conns:
-            self._conns[conn_id] = KeepAliveWebsocket(
+            self._conns[conn_id] = UserDataWebsocketSBE(
                 client=self._client,
                 loop=self._loop,
                 url=self._get_stream_url(option),
-                keepalive_type=path,
                 prefix=prefix,
-                exit_coro=self._stop_socket,
-                user_timeout=self._user_timeout
+                exit_coro=self._stop_socket
             )
         return self._conns[conn_id]
 
@@ -1413,7 +1432,6 @@ class BinanceSocketManager:
         :returns: connection key string if successful, False otherwise
         Message Format - see Binance API docs for all types
         """
-        # return self._get_account_socket('user', option)
         return self._get_account_socket(option)
 
     def user_socket_old(self, option: Optional[int] = None):
