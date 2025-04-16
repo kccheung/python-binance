@@ -818,7 +818,7 @@ class BinanceSocketManager:
             )
         return self._conns[conn_id]
 
-    def _get_account_sbe_socket(self, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false'):
+    def _get_account_sbe_socket(self, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false&responseFormat=sbe&sbeSchemaId=3&sbeSchemaVersion=0'):
         conn_id = f'{BinanceSocketType.ACCOUNT}{option if option in [0, 1] else self._default_option}'
         if conn_id not in self._conns:
             self._conns[conn_id] = UserDataWebsocketSBE(
@@ -1434,6 +1434,17 @@ class BinanceSocketManager:
         """
         return self._get_account_socket(option)
 
+    def user_socket_sbe(self, option: Optional[int] = None):
+        """Start a websocket for user data
+            https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md
+            https://binance-docs.github.io/apidocs/spot/en/#listen-key-spot
+        :param option: base endpoint used, default 2 is data endpoint, 0 and 1 are the main endpoints
+        :type option: int
+        :returns: connection key string if successful, False otherwise
+        Message Format - see Binance API docs for all types
+        """
+        return self._get_account_sbe_socket(option)
+
     def user_socket_old(self, option: Optional[int] = None):
         """Start a websocket for user data
             https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md
@@ -1453,7 +1464,7 @@ class BinanceSocketManager:
         :returns: connection key string if successful, False otherwise
         Message Format - see Binance API docs for all types
         """
-        return self._get_account_socket('margin', option)
+        return self._get_account_socket_old('margin', option)
 
     def futures_socket(self):
         """Start a websocket for futures data
@@ -1481,7 +1492,7 @@ class BinanceSocketManager:
         :returns: connection key string if successful, False otherwise
         Message Format - see Binance API docs for all types
         """
-        return self._get_account_socket(symbol, option)
+        return self._get_account_socket_old(symbol, option)
 
     async def _stop_socket(self, conn_key):
         """Stop a websocket given the connection key
