@@ -824,7 +824,7 @@ class BinanceSocketManager:
             self._conns[conn_id] = UserDataWebsocketSBE(
                 client=self._client,
                 loop=self._loop,
-                url=self._get_stream_url(option),
+                url=self._get_ws_api_url(option),
                 prefix=prefix,
                 exit_coro=self._stop_socket
             )
