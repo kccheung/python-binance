@@ -469,7 +469,7 @@ class UserDataWebsocketSBE(ReconnectingWebsocket):
 
     def _handle_message(self, evt):
         if self.subscribe_not_sent and self.logon_sent:
-            await self.subscribe()
+            asyncio.ensure_future(self.subscribe(), loop=self._loop)
             self._handle_message = lambda x: x
         return evt
 
