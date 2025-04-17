@@ -442,6 +442,8 @@ class UserDataWebsocketSBE(ReconnectingWebsocket):
         super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro)
         self._client = client
         self.timestamp_offset = client.timestamp_offset
+        self.logon_sent = False
+        self.subscribe_not_sent = True
 
     def _sign(self, msg) -> str:
         # default to ed25519
@@ -466,6 +468,9 @@ class UserDataWebsocketSBE(ReconnectingWebsocket):
         self._handle_read_loop = self._loop.call_soon_threadsafe(asyncio.create_task, self._read_loop())
 
     def _handle_message(self, evt):
+        if self.subscribe_not_sent and self.logon_sent:
+            await self.subscribe()
+            self._handle_message = lambda x: x
         return evt
 
     async def _request(self, rid: str, method: str, **params):
@@ -498,7 +503,7 @@ class UserDataWebsocketSBE(ReconnectingWebsocket):
 
     async def _after_connect(self):
         await self.logon()
-        await self.subscribe()
+        self.logon_sent = True
 
 
 class BinanceWebsocketApi(ReconnectingWebsocket):
