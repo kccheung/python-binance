@@ -443,7 +443,6 @@ class UserDataWebsocketSBE(ReconnectingWebsocket):
         self._client = client
         self.timestamp_offset = client.timestamp_offset
         self.logon_sent = False
-        self.subscribe_not_sent = True
 
     def _sign(self, msg) -> str:
         # default to ed25519
@@ -468,7 +467,7 @@ class UserDataWebsocketSBE(ReconnectingWebsocket):
         self._handle_read_loop = self._loop.call_soon_threadsafe(asyncio.create_task, self._read_loop())
 
     def _handle_message(self, evt):
-        if self.subscribe_not_sent and self.logon_sent:
+        if self.logon_sent:
             asyncio.ensure_future(self.subscribe(), loop=self._loop)
             self._handle_message = lambda x: x
         return evt
