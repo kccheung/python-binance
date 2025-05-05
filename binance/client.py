@@ -96,6 +96,7 @@ class BaseClient:
         self.GET_ORDERBOOK_TICKER_URLS = [f'{base_url}/api/v3/ticker/bookTicker' for base_url in self.BASE_API_URLS]
         self.GET_TICKER_URLS = [f'{base_url}/api/v3/ticker' for base_url in self.BASE_API_URLS]
         self.GET_ORDER_URLS = [f'{base_url}/api/v3/order' for base_url in self.BASE_API_URLS]
+        self.AMEND_ORDER_URLS = [f'{base_url}/api/v3/order/amend/keepPriority' for base_url in self.BASE_API_URLS]
         self.REPLACE_ORDER_URLS = [f'{base_url}/api/v3/order/cancelReplace' for base_url in self.BASE_API_URLS]
         self.GET_ALL_ORDERS_URLS = [f'{base_url}/api/v3/allOrders' for base_url in self.BASE_API_URLS]
         self.GET_OPEN_ORDERS_URLS = [f'{base_url}/api/v3/openOrders' for base_url in self.BASE_API_URLS]
@@ -119,6 +120,7 @@ class BaseClient:
         self.get_order_url = self.GET_ORDER_URLS[0]
         self.create_order_url = self.get_order_url
         self.cancel_order_url = self.get_order_url
+        self.amend_order_url = self.AMEND_ORDER_URLS[0]
         self.replace_order_url = self.REPLACE_ORDER_URLS[0]
         self.get_all_orders_url = self.GET_ALL_ORDERS_URLS[0]
         self.get_open_orders_url = self.GET_OPEN_ORDERS_URLS[0]
@@ -202,6 +204,7 @@ class BaseClient:
             self.get_order_url = self.GET_ORDER_URLS[location]
             self.create_order_url = self.get_order_url
             self.cancel_order_url = self.get_order_url
+            self.amend_order_url = self.AMEND_ORDER_URLS[location]
             self.replace_order_url = self.REPLACE_ORDER_URLS[location]
             self.get_all_orders_url = self.GET_ALL_ORDERS_URLS[location]
             self.get_open_orders_url = self.GET_OPEN_ORDERS_URLS[location]
@@ -431,6 +434,11 @@ class Client(BaseClient):
         query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
         self.response = self.session.post(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout)
         return self._handle_response2(self.response)
+
+    def _put_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        self.response = self.session.put(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout)
+        return self._handle_response(self.response)
 
     def _delete_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
@@ -1900,6 +1908,55 @@ class Client(BaseClient):
 
     def get_all_orders_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         return self._get_signed_fast(self.get_all_orders_url, query_string, timeout)
+
+    def amend_order(self, **params):
+        """Reduce the quantity of an existing open order.
+        https://developers.binance.com/docs/binance-spot-api-docs/rest-api/trading-endpoints#order-amend-keep-priority-trade
+        :param symbol: required
+        :type symbol: str
+        :param orderId: optional
+        :type orderId: int
+        :param origClientOrderId: optional
+        :type origClientOrderId: str
+        :param newClientOrderId: The new client order ID for the order after being amended. If not sent, one will be randomly generated.
+                                 It is possible to reuse the current clientOrderId by sending it as the newClientOrderId
+        :type newClientOrderId: str
+        :param newQty: required, must be greater than 0 and less than the order's quantity.
+        :type newQty: decimal
+        :param recvWindow: the number of milliseconds the request is valid for
+        :type recvWindow: int
+        :returns: API response
+        .. code-block:: python
+            {
+              "transactTime": 1741926410255,
+              "executionId": 75,
+              "amendedOrder":
+              {
+                "symbol": "BTCUSDT",
+                "orderId": 33,
+                "orderListId": -1,
+                "origClientOrderId": "5xrgbMyg6z36NzBn2pbT8H",
+                "clientOrderId": "PFaq6hIHxqFENGfdtn4J6Q",
+                "price": "6.00000000",
+                "qty": "5.00000000",
+                "executedQty": "0.00000000",
+                "preventedQty": "0.00000000",
+                "quoteOrderQty": "0.00000000",
+                "cumulativeQuoteQty": "0.00000000",
+                "status": "NEW",
+                "timeInForce": "GTC",
+                "type": "LIMIT",
+                "side": "SELL",
+                "workingTime": 1741926410242,
+                "selfTradePreventionMode": "NONE"
+              }
+            }
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._put('order/amend/keepPriority', True, data=params)
+
+    def amend_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._put_signed_fast(self.amend_order_url, query_string, timeout)
 
     def cancel_order(self, **params):
         """Cancel an active order. Either orderId or origClientOrderId must be sent.
@@ -5778,6 +5835,12 @@ class AsyncClient(BaseClient):
             self.response = response
             return await self._handle_response2(self.response)
 
+    async def _put_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        async with self.session.put(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout) as response:
+            self.response = response
+            return await self._handle_response(self.response)
+
     async def _delete_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
         async with self.session.delete(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout) as response:
@@ -6271,6 +6334,14 @@ class AsyncClient(BaseClient):
 
     async def get_all_orders_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         return await self._get_signed_fast(self.get_all_orders_url, query_string, timeout)
+
+    async def amend_order(self, **params):
+        return await self._put('order/amend/keepPriority', True, data=params)
+
+    amend_order.__doc__ = Client.amend_order.__doc__
+
+    async def amend_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._put_signed_fast(self.amend_order_url, query_string, timeout)
 
     async def cancel_order(self, **params):
         return await self._delete('order', True, data=params)
