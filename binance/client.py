@@ -854,7 +854,10 @@ class Client(BaseClient):
     def reset_timestamp_offset(self):
         send_time_local = time.time_ns()
         receive_time_server = self.get_server_time_fast()
-        self.timestamp_offset = -math.ceil((time.time_ns() + send_time_local) / 2000000.0) + receive_time_server['serverTime']
+        if self.TIME_UNIT_MUS:
+            self.timestamp_offset = math.trunc((-math.ceil((time.time_ns() + send_time_local) / 2000.0) + receive_time_server['serverTime']) / 1000.0)
+        else:
+            self.timestamp_offset = -math.ceil((time.time_ns() + send_time_local) / 2000000.0) + receive_time_server['serverTime']
         if abs(self.timestamp_offset) < 40:
             self.timestamp_offset = 0
 
