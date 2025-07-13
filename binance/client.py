@@ -445,6 +445,11 @@ class Client(BaseClient):
         self.response = self.session.put(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout)
         return self._handle_response(self.response)
 
+    def _put_signed_fast_mus(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        self.response = self.session.put(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout, headers={'X-MBX-TIME-UNIT': 'MICROSECOND'})
+        return self._handle_response(self.response)
+
     def _delete_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
         self.response = self.session.delete(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout)
@@ -1968,6 +1973,9 @@ class Client(BaseClient):
 
     def amend_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         return self._put_signed_fast(self.amend_order_url, query_string, timeout)
+
+    def amend_order_fast_mus(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._put_signed_fast_mus(self.amend_order_url, query_string, timeout)
 
     def cancel_order(self, **params):
         """Cancel an active order. Either orderId or origClientOrderId must be sent.
@@ -5858,6 +5866,12 @@ class AsyncClient(BaseClient):
             self.response = response
             return await self._handle_response(self.response)
 
+    async def _put_signed_fast_mus(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        async with self.session.put(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout, headers={'X-MBX-TIME-UNIT': 'MICROSECOND'}) as response:
+            self.response = response
+            return await self._handle_response(self.response)
+
     async def _delete_signed_fast(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
         async with self.session.delete(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout) as response:
@@ -6362,6 +6376,9 @@ class AsyncClient(BaseClient):
 
     async def amend_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         return await self._put_signed_fast(self.amend_order_url, query_string, timeout)
+
+    async def amend_order_fast_mus(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._put_signed_fast_mus(self.amend_order_url, query_string, timeout)
 
     async def cancel_order(self, **params):
         return await self._delete('order', True, data=params)
