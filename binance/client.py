@@ -455,6 +455,11 @@ class Client(BaseClient):
         self.response = self.session.delete(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout)
         return self._handle_response(self.response)
 
+    def _delete_signed_fast_mus(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        self.response = self.session.delete(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout, headers={'X-MBX-TIME-UNIT': 'MICROSECOND'})
+        return self._handle_response(self.response)
+
     def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
         query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
@@ -2004,6 +2009,9 @@ class Client(BaseClient):
 
     def cancel_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         return self._delete_signed_fast(self.cancel_order_url, query_string, timeout)
+
+    def cancel_order_fast_mus(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return self._delete_signed_fast_mus(self.cancel_order_url, query_string, timeout)
 
     def replace_order(self, **params):
         """Cancels an existing order and places a new order on the same symbol.
@@ -5878,6 +5886,12 @@ class AsyncClient(BaseClient):
             self.response = response
             return await self._handle_response(self.response)
 
+    async def _delete_signed_fast_mus(self, uri: str, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        query_string += f'timestamp={time.time() * 1000 + self.timestamp_offset:.0f}'
+        async with self.session.delete(uri, params=f'{query_string}&signature={self._sign(query_string)}', timeout=timeout, headers={'X-MBX-TIME-UNIT': 'MICROSECOND'}) as response:
+            self.response = response
+            return await self._handle_response(self.response)
+
     async def _other_signed_fast(self, method, uri: str, request_body: List[Tuple[str, str]], timeout: float = BaseClient.REQUEST_TIMEOUT):
         request_body.append(('timestamp', f'{time.time() * 1000 + self.timestamp_offset:.0f}'))
         query_string = '&'.join(f'{data[0]}={data[1]}' for data in request_body)
@@ -6387,6 +6401,9 @@ class AsyncClient(BaseClient):
 
     async def cancel_order_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         return await self._delete_signed_fast(self.cancel_order_url, query_string, timeout)
+
+    async def cancel_order_fast_mus(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._delete_signed_fast_mus(self.cancel_order_url, query_string, timeout)
 
     async def replace_order(self, **params):
         uri = self._create_api_uri('order/cancelReplace', True)
