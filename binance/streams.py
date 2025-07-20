@@ -350,8 +350,8 @@ class ReconnectingWebsocketSBE(ReconnectingWebsocket):
 
 class UserDataWebsocket(ReconnectingWebsocket):
 
-    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = None, prefix: str = 'ws-api/v3?returnRateLimits=false', exit_coro=None):
-        super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro)
+    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = None, prefix: str = 'ws-api/v3?returnRateLimits=false', exit_coro=None, q: Optional[asyncio.Queue] = None):
+        super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro, q=q)
         self._client = client
         self.timestamp_offset = client.timestamp_offset
 
@@ -438,8 +438,9 @@ class UserDataWebsocket(ReconnectingWebsocket):
 
 class UserDataWebsocketSBE(ReconnectingWebsocket):
 
-    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = None, prefix: str = 'ws-api/v3?returnRateLimits=false&responseFormat=sbe&sbeSchemaId=3&sbeSchemaVersion=0', exit_coro=None):
-        super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro)
+    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = None, prefix: str = 'ws-api/v3?returnRateLimits=false&responseFormat=sbe&sbeSchemaId=3&sbeSchemaVersion=0', exit_coro=None,
+                 q: Optional[asyncio.Queue] = None):
+        super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro, q=q)
         self._client = client
         self.timestamp_offset = client.timestamp_offset
         self.logon_sent = False
@@ -811,7 +812,7 @@ class BinanceSocketManager:
             )
         return self._conns[conn_id]
 
-    def _get_account_socket(self, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false'):
+    def _get_account_socket(self, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false', q: Optional[asyncio.Queue] = None):
         conn_id = f'{BinanceSocketType.ACCOUNT}{option if option in [0, 1] else self._default_option}'
         if conn_id not in self._conns:
             self._conns[conn_id] = UserDataWebsocket(
@@ -819,11 +820,12 @@ class BinanceSocketManager:
                 loop=self._loop,
                 url=self._get_ws_api_url(option),
                 prefix=prefix,
-                exit_coro=self._stop_socket
+                exit_coro=self._stop_socket,
+                q=q
             )
         return self._conns[conn_id]
 
-    def _get_account_sbe_socket(self, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false&responseFormat=sbe&sbeSchemaId=3&sbeSchemaVersion=0'):
+    def _get_account_sbe_socket(self, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false&responseFormat=sbe&sbeSchemaId=3&sbeSchemaVersion=0', q: Optional[asyncio.Queue] = None):
         conn_id = f'{BinanceSocketType.ACCOUNT}{option if option in [0, 1] else self._default_option}'
         if conn_id not in self._conns:
             self._conns[conn_id] = UserDataWebsocketSBE(
@@ -831,7 +833,8 @@ class BinanceSocketManager:
                 loop=self._loop,
                 url=self._get_ws_api_url(option),
                 prefix=prefix,
-                exit_coro=self._stop_socket
+                exit_coro=self._stop_socket,
+                q=q
             )
         return self._conns[conn_id]
 
@@ -849,7 +852,7 @@ class BinanceSocketManager:
             )
         return self._conns[conn_id]
 
-    def _get_sbe_testnet_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/'):
+    def _get_sbe_testnet_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/', q: Optional[asyncio.Queue] = None):
         conn_id = f'{BinanceSocketType.SPOT_SBE}{option if option in [0, 1] else self._default_option}{path}'
         if conn_id not in self._conns:
             self._conns[conn_id] = ReconnectingWebsocketSBE(
@@ -859,6 +862,7 @@ class BinanceSocketManager:
                 url=self._get_sbe_stream_testnet_url(option),
                 prefix=prefix,
                 exit_coro=self._stop_socket,
+                q=q
             )
         return self._conns[conn_id]
 
@@ -1385,7 +1389,7 @@ class BinanceSocketManager:
         path = f'streams={"/".join(streams)}'
         return self._get_sbe_socket(path, option, prefix='stream?', q=q)
 
-    def multiplex_socket_sbe_testnet(self, streams: List[str], option: Optional[int] = None):
+    def multiplex_socket_sbe_testnet(self, streams: List[str], option: Optional[int] = None, q: Optional[asyncio.Queue] = None):
         """Start a multiplexed socket using a list of socket names.
         User stream sockets can not be included.
         Symbols in socket name must be lowercase i.e bnbbtc@aggTrade, neobtc@ticker
@@ -1395,13 +1399,14 @@ class BinanceSocketManager:
         :type streams: list
         :param option: base endpoint used, default 2 is data endpoint, 0 and 1 are the main endpoints
         :type option: int
+        :type q: asyncio.Queue
         :returns: connection key string if successful, False otherwise
         Message Format - see Binance API docs for all types
         """
         path = f'streams={"/".join(streams)}'
-        return self._get_sbe_testnet_socket(path, option, prefix='stream?')
+        return self._get_sbe_testnet_socket(path, option, prefix='stream?', q=q)
 
-    def multiplex_socket_mus(self, streams: List[str], option: Optional[int] = None):
+    def multiplex_socket_mus(self, streams: List[str], option: Optional[int] = None, q: Optional[asyncio.Queue] = None):
         """Start a multiplexed socket using a list of socket names.
         User stream sockets can not be included.
         Symbols in socket name must be lowercase i.e bnbbtc@aggTrade, neobtc@ticker
@@ -1411,11 +1416,12 @@ class BinanceSocketManager:
         :type streams: list
         :param option: base endpoint used, default 2 is data endpoint, 0 and 1 are the main endpoints
         :type option: int
+        :type q: asyncio.Queue
         :returns: connection key string if successful, False otherwise
         Message Format - see Binance API docs for all types
         """
         path = f'streams={"/".join(streams)}&timeUnit=microsecond'
-        return self._get_socket(path, option, prefix='stream?')
+        return self._get_socket(path, option, prefix='stream?', q=q)
 
     def futures_multiplex_socket(self, streams: List[str], futures_type: FuturesType = FuturesType.USD_M):
         """Start a multiplexed socket using a list of socket names.
@@ -1431,27 +1437,29 @@ class BinanceSocketManager:
         path = f'streams={"/".join(streams)}'
         return self._get_futures_socket(path, prefix='stream?', futures_type=futures_type)
 
-    def user_socket(self, option: Optional[int] = None):
+    def user_socket(self, option: Optional[int] = None, q: Optional[asyncio.Queue] = None):
         """Start a websocket for user data
             https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md
             https://binance-docs.github.io/apidocs/spot/en/#listen-key-spot
         :param option: base endpoint used, default 2 is data endpoint, 0 and 1 are the main endpoints
         :type option: int
+        :type q: asyncio.Queue
         :returns: connection key string if successful, False otherwise
         Message Format - see Binance API docs for all types
         """
-        return self._get_account_socket(option)
+        return self._get_account_socket(option, q=q)
 
-    def user_socket_sbe(self, option: Optional[int] = None):
+    def user_socket_sbe(self, option: Optional[int] = None, q: Optional[asyncio.Queue] = None):
         """Start a websocket for user data
             https://github.com/binance-exchange/binance-official-api-docs/blob/master/user-data-stream.md
             https://binance-docs.github.io/apidocs/spot/en/#listen-key-spot
         :param option: base endpoint used, default 2 is data endpoint, 0 and 1 are the main endpoints
         :type option: int
+        :type q: asyncio.Queue
         :returns: connection key string if successful, False otherwise
         Message Format - see Binance API docs for all types
         """
-        return self._get_account_sbe_socket(option)
+        return self._get_account_sbe_socket(option, q=q)
 
     def user_socket_old(self, option: Optional[int] = None):
         """Start a websocket for user data
