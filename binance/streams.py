@@ -51,7 +51,7 @@ class ReconnectingWebsocket:
     TIMEOUT = 60
 
     def __init__(
-            self, loop, url: str, path: Optional[str] = None, prefix: str = 'ws/', exit_coro=None
+            self, loop, url: str, path: Optional[str] = None, prefix: str = 'ws/', exit_coro=None, q: Optional[asyncio.Queue] = None
     ):
         self._loop = loop or asyncio.get_event_loop()
         self._log = logging.getLogger(__name__)
@@ -64,7 +64,7 @@ class ReconnectingWebsocket:
         self._socket = None
         self.ws: Optional[ws.WebSocketClientProtocol] = None
         self.ws_state = WSListenerState.INITIALISING
-        self._queue = asyncio.Queue(loop=self._loop)
+        self._queue = q if q else asyncio.Queue(loop=self._loop)
         self._handle_read_loop = None
         self._read_loop_finish = asyncio.Event(loop=self._loop)
         self._reconnect_waiter = asyncio.Event(loop=self._loop)
@@ -321,8 +321,8 @@ class KeepAliveWebsocket(ReconnectingWebsocket):
 
 class ReconnectingWebsocketSBE(ReconnectingWebsocket):
 
-    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = None, prefix: str = 'ws/', exit_coro=None):
-        super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro)
+    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = None, prefix: str = 'ws/', exit_coro=None, q: Optional[asyncio.Queue] = None):
+        super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro, q=q)
         self._client = client
 
     async def connect(self):
@@ -784,7 +784,7 @@ class BinanceSocketManager:
                 return self.SBE_STREAM_TESTNET_URLS[option]
         return self._default_sbe_stream_testnet_url
 
-    def _get_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/'):
+    def _get_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/', q: Optional[asyncio.Queue] = None):
         conn_id = f'{BinanceSocketType.SPOT}{option if option in [0, 1, 2, 3] else self._default_option}{path}'
         if conn_id not in self._conns:
             self._conns[conn_id] = ReconnectingWebsocket(
@@ -793,6 +793,7 @@ class BinanceSocketManager:
                 url=self._get_stream_url(option),
                 prefix=prefix,
                 exit_coro=self._stop_socket,
+                q=q
             )
         return self._conns[conn_id]
 
@@ -834,7 +835,7 @@ class BinanceSocketManager:
             )
         return self._conns[conn_id]
 
-    def _get_sbe_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/'):
+    def _get_sbe_socket(self, path: str, option: Optional[int] = None, prefix: str = 'ws/', q: Optional[asyncio.Queue] = None):
         conn_id = f'{BinanceSocketType.SPOT_SBE}{option if option in [0, 1] else self._default_option}{path}'
         if conn_id not in self._conns:
             self._conns[conn_id] = ReconnectingWebsocketSBE(
@@ -844,6 +845,7 @@ class BinanceSocketManager:
                 url=self._get_sbe_stream_url(option),
                 prefix=prefix,
                 exit_coro=self._stop_socket,
+                q=q
             )
         return self._conns[conn_id]
 
@@ -1349,7 +1351,7 @@ class BinanceSocketManager:
         """
         return self._get_socket('!bookTicker', option)
 
-    def multiplex_socket(self, streams: List[str], option: Optional[int] = None):
+    def multiplex_socket(self, streams: List[str], option: Optional[int] = None, q: Optional[asyncio.Queue] = None):
         """Start a multiplexed socket using a list of socket names.
         User stream sockets can not be included.
         Symbols in socket name must be lowercase i.e bnbbtc@aggTrade, neobtc@ticker
@@ -1359,13 +1361,14 @@ class BinanceSocketManager:
         :type streams: list
         :param option: base endpoint used, default 2 is data endpoint, 0 and 1 are the main endpoints
         :type option: int
+        :type q: asyncio.Queue
         :returns: connection key string if successful, False otherwise
         Message Format - see Binance API docs for all types
         """
         path = f'streams={"/".join(streams)}'
-        return self._get_socket(path, option, prefix='stream?')
+        return self._get_socket(path, option, prefix='stream?', q=q)
 
-    def multiplex_socket_sbe(self, streams: List[str], option: Optional[int] = None):
+    def multiplex_socket_sbe(self, streams: List[str], option: Optional[int] = None, q: Optional[asyncio.Queue] = None):
         """Start a multiplexed socket using a list of socket names.
         User stream sockets can not be included.
         Symbols in socket name must be lowercase i.e bnbbtc@aggTrade, neobtc@ticker
@@ -1375,11 +1378,12 @@ class BinanceSocketManager:
         :type streams: list
         :param option: base endpoint used, default 2 is data endpoint, 0 and 1 are the main endpoints
         :type option: int
+        :type q: asyncio.Queue
         :returns: connection key string if successful, False otherwise
         Message Format - see Binance API docs for all types
         """
         path = f'streams={"/".join(streams)}'
-        return self._get_sbe_socket(path, option, prefix='stream?')
+        return self._get_sbe_socket(path, option, prefix='stream?', q=q)
 
     def multiplex_socket_sbe_testnet(self, streams: List[str], option: Optional[int] = None):
         """Start a multiplexed socket using a list of socket names.
