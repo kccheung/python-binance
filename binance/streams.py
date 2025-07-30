@@ -739,8 +739,9 @@ class AnnouncementsWebsocket(ReconnectingWebsocket):
         await self._before_connect()
         params = {'random': ''.join(random.choices(string.ascii_letters + string.digits, k=32)), 'recvWindow': 5000, 'topic': 'com_announcement_en'}
         params['timestamp'] = int(time.time() * 1000 + self.timestamp_offset)
-        params['signature'] = self._sign('&'.join([f'{kv[0]}={kv[1]}' for kv in sorted(params.items())]))
-        ws_url = self._url + self._prefix + '?' + '&'.join([f'{kv[0]}={kv[1]}' for kv in params.items()])
+        sorted_params = '&'.join([f'{kv[0]}={kv[1]}' for kv in sorted(params.items())])
+        signature = self._sign(sorted_params)
+        ws_url = f'{self._url}{self._prefix}?{sorted_params}&signature={signature}'
         self._conn = ws.connect(ws_url, close_timeout=0.1, ping_interval=None, extra_headers={'X-MBX-APIKEY': self._client.API_KEY})
         try:
             self.ws = await self._conn.__aenter__()
