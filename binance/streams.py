@@ -22,6 +22,9 @@ from base64 import b64encode
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 
+import random
+import string
+
 
 KEEPALIVE_TIMEOUT = 5 * 60  # 5 minutes
 WS_API_TIMEOUT = 60  # 1 minutes
@@ -42,6 +45,7 @@ class BinanceSocketType(str, Enum):
     COIN_M_FUTURES = 'C'
     OPTIONS = 'V'
     ACCOUNT = 'A'
+    ANNOUNCEMENTS = 'N'
 
 
 class ReconnectingWebsocket:
@@ -719,7 +723,52 @@ class BinanceWebsocketApi(ReconnectingWebsocket):
         return {'success': True}
 
 
+class AnnouncementsWebsocket(ReconnectingWebsocket):
+
+    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = None, prefix: str = 'sapi/wss', exit_coro=None, q: Optional[asyncio.Queue] = None):
+        super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro, q=q)
+        self._client = client
+        self.timestamp_offset = client.timestamp_offset
+
+    def _sign(self, msg) -> str:
+        # default to ed25519
+        return b64encode(self._client.API_SECRET.sign(msg.encode())).decode()
+
+    async def connect(self):
+        self.ws_state = WSListenerState.CONNECTING
+        await self._before_connect()
+        params = {'random': ''.join(random.choices(string.ascii_letters + string.digits, k=32)), 'recvWindow': 5000, 'topic': 'com_announcement_en'}
+        params['timestamp'] = int(time.time() * 1000 + self.timestamp_offset)
+        params['signature'] = self._sign('&'.join([f'{kv[0]}={kv[1]}' for kv in sorted(params.items())]))
+        ws_url = self._url + self._prefix + '?' + '&'.join([f'{kv[0]}={kv[1]}' for kv in params.items()])
+        self._conn = ws.connect(ws_url, close_timeout=0.1, ping_interval=None, extra_headers={'X-MBX-APIKEY': self._client.API_KEY})
+        try:
+            self.ws = await self._conn.__aenter__()
+        except:  # noqa
+            asyncio.ensure_future(self._reconnect(), loop=self._loop)
+            return
+        self.ws_state = WSListenerState.STREAMING
+        self._reconnects = 0
+        await self._after_connect()
+        self._reconnect_waiter.set()
+        if self._handle_read_loop:
+            await self._read_loop_finish.wait()
+        self._handle_read_loop = self._loop.call_soon_threadsafe(asyncio.create_task, self._read_loop())
+
+    def _handle_message(self, evt):
+        try:
+            msg = orjson.loads(evt)
+            if 'data' in msg:
+                return msg['data']
+            else:
+                return msg
+        except ValueError:
+            self._log.debug(f'error parsing evt json:{evt}')
+            return None
+
+
 class BinanceSocketManager:
+    API_URL = 'wss://api.binance.com/'
     STREAM_URLS = ['wss://stream.binance.com:9443/', 'wss://stream.binance.com:443/']
     STREAM_TESTNET_URL = 'wss://testnet.binance.vision/'
     SBE_STREAM_URLS = ['wss://stream-sbe.binance.com/', 'wss://stream-sbe.binance.com:9443/']
@@ -832,6 +881,19 @@ class BinanceSocketManager:
                 client=self._client,
                 loop=self._loop,
                 url=self._get_ws_api_url(option),
+                prefix=prefix,
+                exit_coro=self._stop_socket,
+                q=q
+            )
+        return self._conns[conn_id]
+
+    def _get_announcements_socket(self, prefix: str = 'sapi/wss', q: Optional[asyncio.Queue] = None):
+        conn_id = BinanceSocketType.ANNOUNCEMENTS
+        if conn_id not in self._conns:
+            self._conns[conn_id] = AnnouncementsWebsocket(
+                client=self._client,
+                loop=self._loop,
+                url=self.API_URL,
                 prefix=prefix,
                 exit_coro=self._stop_socket,
                 q=q
@@ -1471,6 +1533,9 @@ class BinanceSocketManager:
         Message Format - see Binance API docs for all types
         """
         return self._get_account_socket_old('user', option)
+
+    def announcements_socket(self, q: Optional[asyncio.Queue] = None):
+        return self._get_announcements_socket(q=q)
 
     def margin_socket(self, option: Optional[int] = None):
         """Start a websocket for cross-margin data
