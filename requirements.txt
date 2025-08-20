@@ -4,7 +4,7 @@ dateparser==0.6.0
 orjson==3.9.7
 pytest==5.3.3
 pytz==2017.3
-requests==2.22.0
+requests==2.25.0
 requests_mock==1.10.0
 websockets==10.1
 setuptools==65.5.0
