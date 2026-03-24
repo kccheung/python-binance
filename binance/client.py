@@ -104,6 +104,8 @@ class BaseClient:
         self.GET_MY_TRADES_URLS = [f'{base_url}/api/v3/myTrades' for base_url in self.BASE_API_URLS]
         self.CREATE_MARGIN_ORDER_URLS = [f'{base_url}/sapi/v1/margin/order' for base_url in self.BASE_API_URLS]
         self.CREATE_SOR_ORDER_URLS = [f'{base_url}/api/v3/sor/order' for base_url in self.BASE_API_URLS]
+        self.GET_EXECUTION_RULES_URLS = [f'{base_url}/api/v3/executionRules' for base_url in self.BASE_API_URLS]
+        self.GET_REF_PRICE_URLS = [f'{base_url}/api/v3/referencePrice' for base_url in self.BASE_API_URLS]
 
         self.base_api_url_location = 0
         self.base_api_url = self.BASE_API_URLS[0]
@@ -129,6 +131,8 @@ class BaseClient:
         self.get_my_trades_url = self.GET_MY_TRADES_URLS[0]
         self.create_margin_order_url = self.CREATE_MARGIN_ORDER_URLS[0]
         self.create_sor_order_url = self.CREATE_SOR_ORDER_URLS[0]
+        self.get_execution_rules_url = self.GET_EXECUTION_RULES_URLS[0]
+        self.get_ref_price_url = self.GET_REF_PRICE_URLS[0]
 
     def get_best_location(self, n_sample: int, timeout: float = REQUEST_TIMEOUT) -> int:
         total_elapseds = {i: 0 for i in range(self.N_BASE_API_URLS)}
@@ -866,6 +870,34 @@ class Client(BaseClient):
     def get_server_time_fast(self, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
         return self._request_fast('get', self.get_server_time_url, '', timeout)
 
+    def get_execution_rules(self, **params) -> Dict:
+        """Query Execution Rules
+        https://developers.binance.com/docs/binance-spot-api-docs/rest-api/general-endpoints#query-execution-rules
+        :returns: Execution rules
+        .. code-block:: python
+            {
+                "symbolRules": [
+                    {
+                        "symbol": "BAZUSD",
+                        "rules": [
+                            {
+                                "ruleType": "PRICE_RANGE",
+                                "bidLimitMultUp": "1.0001",
+                                "bidLimitMultDown": "0.9999",
+                                "askLimitMultUp": "1.0001",
+                                "askLimitMultDown": "0.9999"
+                            }
+                        ]
+                    }
+                ]
+            }
+        :raises: BinanceRequestException, BinanceAPIException
+        """
+        return self._get('executionRules', data=params)
+
+    def get_execution_rules_fast(self, query_string: str = '', timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return self._request_fast('get', self.get_execution_rules_url, query_string, timeout)
+
     def reset_timestamp_offset(self):
         send_time_local = time.time_ns()
         receive_time_server = self.get_server_time_fast()
@@ -1381,7 +1413,7 @@ class Client(BaseClient):
                 "price": "9.35751834"
             }
         """
-        return self._get('avgPrice', data=params, version=self.PRIVATE_API_VERSION)
+        return self._get('avgPrice', data=params)
 
     def get_avg_price_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
         return self._request_fast('get', self.get_avg_price_url, query_string, timeout)
@@ -1579,6 +1611,59 @@ class Client(BaseClient):
 
     def get_price_change_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         return self._request_fast('get', self.get_ticker_url, query_string, timeout)
+
+    def get_ref_price(self, **params) -> Dict:
+        """Query Reference Price
+        https://developers.binance.com/docs/binance-spot-api-docs/rest-api/market-data-endpoints#query-reference-price
+        :param symbol:
+        :type symbol: str
+        :returns: API response
+        .. code-block:: python
+        If a reference price is set:
+            {
+              "symbol": "BAZUSD",
+              "referencePrice": "10.00",
+              "timestamp": 1770736694138   // Timestamp when reference price was valid
+            }
+        If no reference price is set:
+            {
+              "symbol": "BAZUSD",
+              "referencePrice": null,
+              "timestamp": 1770736694138  // Timestamp when reference price was valid
+            }
+        """
+        return self._get('referencePrice', data=params)
+
+    def get_ref_price_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return self._request_fast('get', self.get_ref_price_url, query_string, timeout)
+
+    def get_ref_price_calculation(self, **params) -> Dict:
+        """Describes how reference price is calculated for a given symbol.
+        https://developers.binance.com/docs/binance-spot-api-docs/rest-api/market-data-endpoints#query-reference-price-calculation
+        :param symbol:
+        :type symbol: str
+        :returns: API response
+        .. code-block:: python
+        If reference price is not being calculated:
+            {
+                "code": -2043,
+                "msg": "This symbol doesn't have a reference price."
+            }
+        If the reference price is being calculated by the matching engine as an arithmetic mean:
+            {
+              "symbol": "BAZUSD",
+              "calculationType": "ARITHMETIC_MEAN",
+              "bucketCount": 10,
+              "bucketWidthMs": 1000
+            }
+        If the reference price is being calculated outside the matching engine:
+            {
+              "symbol": "BAZUSD",
+              "calculationType": "EXTERNAL",
+              "externalCalculationId": 42
+            }
+        """
+        return self._get('referencePrice/calculation', data=params)
 
     # Account Endpoints
 
@@ -6042,6 +6127,14 @@ class AsyncClient(BaseClient):
     async def get_server_time_fast(self, timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
         return await self._request_fast('get', self.get_server_time_url, '', timeout)
 
+    async def get_execution_rules(self, **params) -> Dict:
+        return await self._get('executionRules', data=params)
+
+    get_execution_rules.__doc = Client.get_execution_rules.__doc__
+
+    async def get_execution_rules_fast(self, query_string: str = '', timeout: float = BaseClient.REQUEST_TIMEOUT) -> Dict:
+        return await self._request_fast('get', self.get_execution_rules_url, query_string, timeout)
+
     # Market Data Endpoints
 
     async def get_all_tickers(self):
@@ -6300,7 +6393,7 @@ class AsyncClient(BaseClient):
     _historical_klines_generator.__doc__ = Client._historical_klines_generator.__doc__
 
     async def get_avg_price(self, **params):
-        return await self._get('avgPrice', data=params, version=self.PRIVATE_API_VERSION)
+        return await self._get('avgPrice', data=params)
 
     get_avg_price.__doc__ = Client.get_avg_price.__doc__
 
@@ -6316,12 +6409,12 @@ class AsyncClient(BaseClient):
         return await self._request_fast('get', self.get_ticker_24hr_url, query_string, timeout)
 
     async def get_symbol_ticker(self, **params):
-        return await self._get('ticker/price', data=params, version=self.PRIVATE_API_VERSION)
+        return await self._get('ticker/price', data=params)
 
     get_symbol_ticker.__doc__ = Client.get_symbol_ticker.__doc__
 
     async def get_orderbook_ticker(self, **params):
-        return await self._get('ticker/bookTicker', data=params, version=self.PRIVATE_API_VERSION)
+        return await self._get('ticker/bookTicker', data=params)
 
     get_orderbook_ticker.__doc__ = Client.get_orderbook_ticker.__doc__
 
@@ -6335,6 +6428,19 @@ class AsyncClient(BaseClient):
 
     async def get_price_change_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
         return await self._request_fast('get', self.get_ticker_url, query_string, timeout)
+
+    async def get_ref_price(self, **params):
+        return await self._get('referencePrice', data=params)
+
+    get_ref_price.__doc__ = Client.get_ref_price.__doc__
+
+    async def get_ref_price_fast(self, query_string: str, timeout: float = BaseClient.REQUEST_TIMEOUT):
+        return await self._request_fast('get', self.get_ref_price_url, query_string, timeout)
+
+    async def get_ref_price_calculation(self, **params):
+        return await self._get('referencePrice/calculation', data=params)
+
+    get_ref_price_calculation.__doc__ = Client.get_ref_price_calculation.__doc__
 
     # Account Endpoints
 
