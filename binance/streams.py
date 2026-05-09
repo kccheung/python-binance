@@ -442,7 +442,7 @@ class UserDataWebsocket(ReconnectingWebsocket):
 
 class UserDataWebsocketSBE(ReconnectingWebsocket):
 
-    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = None, prefix: str = 'ws-api/v3?returnRateLimits=false&responseFormat=sbe&sbeSchemaId=3&sbeSchemaVersion=3', exit_coro=None,
+    def __init__(self, client: AsyncClient, loop, url: str, path: Optional[str] = None, prefix: str = 'ws-api/v3?returnRateLimits=false&responseFormat=sbe&sbeSchemaId=3&sbeSchemaVersion=4', exit_coro=None,
                  q: Optional[asyncio.Queue] = None):
         super().__init__(loop=loop, url=url, path=path, prefix=prefix, exit_coro=exit_coro, q=q)
         self._client = client
@@ -875,7 +875,7 @@ class BinanceSocketManager:
             )
         return self._conns[conn_id]
 
-    def _get_account_sbe_socket(self, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false&responseFormat=sbe&sbeSchemaId=3&sbeSchemaVersion=3', q: Optional[asyncio.Queue] = None):
+    def _get_account_sbe_socket(self, option: Optional[int] = None, prefix: str = 'ws-api/v3?returnRateLimits=false&responseFormat=sbe&sbeSchemaId=3&sbeSchemaVersion=4', q: Optional[asyncio.Queue] = None):
         conn_id = f'{BinanceSocketType.ACCOUNT}{option if option in [0, 1] else self._default_option}'
         if conn_id not in self._conns:
             self._conns[conn_id] = UserDataWebsocketSBE(
