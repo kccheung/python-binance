@@ -498,7 +498,7 @@ class UserDataWebsocketSBE(ReconnectingWebsocket):
         return {'success': True}
 
     async def subscribe(self):
-        await self._request('subscribe', 'userDataStream.subscribe')
+        await self._request('subscribe', 'userDataStream.subscribe', filter={'e': ['executionReport']})
         return {'success': True}
 
     async def unsubscribe(self):
